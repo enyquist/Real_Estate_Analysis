@@ -1,7 +1,6 @@
 import json
 import os
 import pandas as pd
-import numpy as np
 import requests
 import math
 
@@ -128,34 +127,3 @@ class RealEstateData:
         df_results = pd.concat(list_results_dfs, ignore_index=True)
 
         return df_results
-
-
-def probability(df):
-    """
-
-    :param df:
-    :return:
-    """
-    s = np.sum(df, axis=0)
-    m = len(df)
-    mu = s / m
-    vr = np.sum((df - mu) ** 2, axis=0)
-    variance = vr / m
-    var_dia = np.diag(variance)
-    k = len(mu)
-    X = df - mu
-    p = 1 / ((2 * np.pi) ** (k / 2) * (np.linalg.det(var_dia) ** 0.5)) * np.exp(
-        -0.5 * np.sum(X @ np.linalg.pinv(var_dia) * X, axis=1))
-    return p
-
-
-def feat_importance(m, df_train):
-    """
-
-    :param m:
-    :param df_train:
-    :return:
-    """
-    importance = m.feature_importances_
-    importance = pd.DataFrame(importance, index=df_train.columns, columns=["Importance"])
-    return importance.sort_values(by=['Importance'], ascending=False)

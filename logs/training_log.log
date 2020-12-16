@@ -1,0 +1,15 @@
+2020-12-15 21:48:17,619:MainProcess:root:INFO:Starting Exhaustive Grid Search
+2020-12-15 21:50:33,849:MainProcess:root:INFO:Starting Exhaustive Grid Search
+2020-12-16 02:22:22,880:MainProcess:root:INFO:Grid Search Complete
+2020-12-16 02:22:23,439:MainProcess:root:INFO:Grid object and cv_results_ saved
+2020-12-16 02:22:37,177:MainProcess:root:INFO:Results from Exhaustive Grid Search (EGS):
+2020-12-16 02:22:37,179:MainProcess:root:INFO:EGS best estimator: Pipeline(steps=[('scaler', QuantileTransformer()),
+                ('feature_selection',
+                 SelectFromModel(estimator=<catboost.core.CatBoostRegressor object at 0x00000200F0EA6EC8>)),
+                ('regressor',
+                 <catboost.core.CatBoostRegressor object at 0x00000200F0EA6C48>)])
+2020-12-16 02:22:37,180:MainProcess:root:INFO:EGS Validation Score: 0.8124534438242197
+2020-12-16 02:22:37,180:MainProcess:root:INFO:EGS Best params: {'feature_selection': SelectFromModel(estimator=<catboost.core.CatBoostRegressor object at 0x00000200EFC601C8>), 'regressor': <catboost.core.CatBoostRegressor object at 0x00000200EFC603C8>, 'regressor__depth': 6, 'regressor__iterations': 1000, 'regressor__learning_rate': 0.05, 'regressor__loss_function': 'RMSE', 'scaler': QuantileTransformer()}
+2020-12-16 02:22:37,181:MainProcess:root:INFO:EGS Cross Validation Scores: [0.61991392 0.8101451  0.72269698 0.25037767 0.72657418]
+2020-12-16 02:22:37,181:MainProcess:root:INFO:EGS accuracy on data: 0.63 (+/- 0.39)
+2020-12-16 02:22:37,181:MainProcess:root:INFO:EGS R2 score: 0.6050700196155784
