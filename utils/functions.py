@@ -1,129 +1,121 @@
-import json
-import os
-import pandas as pd
-import requests
-import math
-
-RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY')
-RAPIDAPI_HOST_RE = os.environ.get('RAPIDAPI_HOST_RE')
-RAPIDAPI_OFFSET = 200
+import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import r2_score
+import logging
 
 
-class RealEstateData:
+def create_logger(e_handler_name, t_handler_name):
     """
-    RealEstateData is designed to collect real estate listings for analysis from a given CITY, STATE,
-    parsing data from the RapidAPI for Realtor.com.
-
-    Use Guidelines:
-
-    my_real_estate = RealEstateData('CITY', 'STATE_CODE')
-
-    my_real_estate_results = my_real_estate.results
-
-    To Do:
-    - Check for null values in API return
-    - Check for invalid input
-    - Reduce number of API calls, currently 1 + N per instance, where N is CEIL(total_results / 200)
+    Wrapper to create logger for errors and training records
+    :param e_handler_name:
+    :param t_handler_name:
+    :return:
     """
 
-    def __init__(self, city, state):
-        self.city = city.upper()
-        self.state = state.upper()
-        self._jsonREData = self.fetch_housing_data()
-        self.results = self.parse()
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-    def __repr__(self):
-        return f"RealEstateData('{self.city, self.state}')"
+    # Create Handlers
+    c_handler = logging.StreamHandler()
+    e_handler = logging.FileHandler(filename=e_handler_name)
+    t_handler = logging.FileHandler(filename=t_handler_name)
 
-    def __str__(self):
-        return f'{self.city, self.state} real estate data'
+    # Create Log Format(s)
+    f_format = logging.Formatter('%(asctime)s:%(processName)s:%(name)s:%(levelname)s:%(message)s')
 
-    def fetch_housing_data(self):
-        """
-        Function to fetch all housing data from Realtor.com via RapidAPI
-        :return: Dictionary of Dictionaries containing all the results from the the API call
-        """
-        url = "https://realtor-com-real-estate.p.rapidapi.com/for-sale"
+    # Set handler levels
+    c_handler.setLevel(logging.INFO)
+    e_handler.setLevel(logging.ERROR)
+    t_handler.setLevel(logging.INFO)
 
-        housing_total = self.fetch_housing_total()
+    # Set handler formats
+    c_handler.setFormatter(f_format)
+    e_handler.setFormatter(f_format)
+    t_handler.setFormatter(f_format)
 
-        list_offset = self.define_chunks(housing_total)
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(e_handler)
+    logger.addHandler(t_handler)
 
-        list_json_data = []
+    return logger
 
-        for offset in list_offset:
 
-            querystring = {"city": self.city,
-                           "offset": offset,
-                           "state_code": self.state,
-                           "limit": "200",
-                           "sort": "newest"}
+def prepare_my_data(my_df):
+    """
+    Wrapper to clean and prepare data for downstream tasks
+    :param my_df: DataFrame of features
+    :return: Split Dataset into X, y (including outliers), and a train/test split without outliers
+    """
 
-            headers = {
-                'x-rapidapi-key': RAPIDAPI_KEY,
-                'x-rapidapi-host': RAPIDAPI_HOST_RE
-            }
+    # Imputer Instance
+    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
 
-            response = requests.request("GET", url, headers=headers, params=querystring)
+    # split into input and output elements
+    X, y = my_df.drop('list_price', axis=1).values, my_df['list_price'].values
 
-            if response.status_code == 200:
-                json_content = json.loads(response.content)
-                list_json_data.append(json_content)
-            else:
-                pass
+    # Impute data
+    X = imp.fit_transform(X)
 
-        return list_json_data
+    # Outlier Detection
+    clf = IsolationForest(random_state=42).fit_predict(X)
 
-    def fetch_housing_total(self):
-        """
-        Function to fetch the total number of listings in CITY, STATE from Realtor.com via Rapid API
-        :return: Total number of listings in CITY, STATE as int
-        """
-        url = "https://realtor-com-real-estate.p.rapidapi.com/for-sale"
+    # Mask outliers
+    mask = np.where(clf == -1)
 
-        querystring = {"city": self.city,
-                       "offset": 0,
-                       "state_code": self.state,
-                       "limit": "1",
-                       "sort": "newest"}
+    # Split data using outlier-free data
+    X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0),
+                                                        np.delete(y, mask),
+                                                        test_size=0.2,
+                                                        random_state=42)
 
-        headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': RAPIDAPI_HOST_RE
-        }
+    return X, y, X_train, X_test, y_train, y_test
 
-        response = requests.request("GET", url, headers=headers, params=querystring)
 
-        if response.status_code == 200:
-            json_content = json.loads(response.content)
-            housing_total = json_content['data']['total']
-            return housing_total
-        else:
-            return None
+def train_my_model(my_df, my_pipeline, my_param_grid, search=50):
+    """
+    Wrapper for training a regression model to predict housing prices
+    :param my_df: DataFrame of features
+    :param my_pipeline: Training Pipeline, an instance of sklearn's Pipeline
+    :param my_param_grid: Dictionary containing the parameters to train over
+    :param search: Number of iterations to search in RandomizedSearchCV, default 50
+    :return: RandomizedSearchCV object
+    """
 
-    @staticmethod
-    def define_chunks(total, chunk=RAPIDAPI_OFFSET):
-        """
-        Function to define the offset to collect total number of listings in CITY, STATE from Realtor.com via Rapid API
-        :param total: Total number of listings
-        :param chunk: Offset to collect on, RAPIDAPI can return up to RAPIDAPI_OFFSET each call
-        :return: list of offsets needed to collect entire dataset
-        """
+    _, _, X_train, _, y_train, _ = prepare_my_data(my_df)
 
-        list_chunk_sizes = []
-        for x in range(math.ceil(total / chunk)):
-            list_chunk_sizes.append(chunk * x)
+    # Create RandomizedSearchCV instance
+    rscv = RandomizedSearchCV(estimator=my_pipeline,
+                              param_distributions=my_param_grid,
+                              n_iter=search,
+                              cv=5,
+                              n_jobs=-1)
 
-        return list_chunk_sizes
+    rscv.fit(X_train, y_train)
 
-    def parse(self):
-        """
-        Function to format the entire dataset as a DataFrame
-        :return: DataFrame built from total dataset
-        """
+    return rscv
 
-        list_results_dfs = [pd.json_normalize(result['data']['results']) for result in self._jsonREData]
 
-        df_results = pd.concat(list_results_dfs, ignore_index=True)
+def score_my_model(my_df, my_model):
+    """
+    Wrapper to score a model
+    :param my_df: DataFrame of features
+    :param my_model: an instance of an sklearn model. Must have a .fit method implemented
+    :return:
+    """
 
-        return df_results
+    X, y, _, X_test, _, y_test = prepare_my_data(my_df)
+
+    scores = cross_val_score(my_model.best_estimator_, X, y)
+
+    # Score model
+    model_score = my_model.score(X_test, y_test)
+
+    # Predict and Test on test data
+    y_pred = my_model.predict(X_test)
+
+    r2 = r2_score(y_test, y_pred)
+
+    return [scores, scores.mean(), scores.std() * 2, model_score, r2]

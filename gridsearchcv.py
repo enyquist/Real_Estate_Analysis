@@ -19,39 +19,15 @@ import seaborn as sns
 import time
 import os
 import pickle
-import logging
 
-from utils.functions import RealEstateData
+from utils.RealEstateData import RealEstateData
+from utils.functions import create_logger
 
 #######################################################################################################################
 # Config Log File
 #######################################################################################################################
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# Create Handlers
-c_handler = logging.StreamHandler()
-e_handler = logging.FileHandler(filename='logs/error_log.log')
-t_handler = logging.FileHandler(filename='logs/training_log.log')
-
-# Create Log Format(s)
-f_format = logging.Formatter('%(asctime)s:%(processName)s:%(name)s:%(levelname)s:%(message)s')
-
-# Set handler levels
-c_handler.setLevel(logging.INFO)
-e_handler.setLevel(logging.ERROR)
-t_handler.setLevel(logging.INFO)
-
-# Set handler formats
-c_handler.setFormatter(f_format)
-e_handler.setFormatter(f_format)
-t_handler.setFormatter(f_format)
-
-# Add handlers to the logger
-logger.addHandler(c_handler)
-logger.addHandler(e_handler)
-logger.addHandler(t_handler)
+logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
 
 #######################################################################################################################
 # Placeholder for user input
@@ -74,35 +50,6 @@ if os.path.exists('01 Misc/durham.pickle'):
         df_durham = pickle.load(file)
 else:
     df_durham = RealEstateData(str_city, str_state_code).results
-
-    ####################################################################################################################
-    # Data Preparation
-    ####################################################################################################################
-
-    # ID metadata to drop
-    list_drop_columns = [
-        'permalink',
-        'photos',
-        'community',
-        'virtual_tours',
-        'matterport',
-        'primary_photo.href',
-        'source.plan_id',
-        'source.agents',
-        'source.spec_id',
-        'description.sub_type',
-        'lead_attributes.show_contact_an_agent',
-        'other_listings.rdc',
-        'primary_photo',
-        'products',
-        'community.advertisers',
-        'community.description.name',
-        'location.address.coordinate',
-        'other_listings',
-        'location.county'
-    ]
-
-    df_durham.drop(list_drop_columns, axis=1, inplace=True)
 
 # Parse into unique DataFrame for each type of real estate
 df_sf = df_durham[df_durham['description.type'] == 'single_family']
@@ -138,11 +85,8 @@ clf = IsolationForest(random_state=42).fit_predict(X)
 # Mask outliers
 mask = np.where(clf == -1)
 
-X = np.delete(X, mask, axis=0)
-y = np.delete(y, mask)
-
 # Split data using outlier-free data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0), np.delete(y, mask), test_size=0.2, random_state=42)
 
 # Define Pipeline
 regression_pipe = Pipeline([
@@ -295,102 +239,3 @@ logger.info(f"EGS R2 score: %0.2f" % r2)
 # Accuracy on data: 0.63 (+/- 0.39)
 
 # R2 score on test set: 0.61
-
-
-# Voting Regressor
-best_catboost = CatBoostRegressor(
-    depth=6,
-    iterations=1000,
-    learning_rate=0.05,
-    loss_function='RMSE'
-)
-
-best_rnd_forest = RandomForestRegressor()
-
-best_enet = ElasticNet(
-    alpha=100.0,
-    l1_ratio=1.0
-)
-
-best_linreg = LinearRegression()
-
-best_knreg = KNeighborsRegressor(
-    weights='distance',
-    n_neighbors=5
-)
-
-param_grid = [
-    {  # VotingRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough'],
-        'regressor': [VotingRegressor([
-            ('catboost', best_catboost),
-            ('randforest', best_rnd_forest),
-            ('enet', best_enet),
-            ('lr', best_linreg),
-            ('kn', best_knreg)
-        ])],
-    }
-]
-
-# Create Grid
-grid = GridSearchCV(estimator=regression_pipe,
-                    param_grid=param_grid,
-                    cv=5,
-                    n_jobs=-1)
-
-# Train Grid on train data
-start = time.perf_counter()
-
-grid.fit(X_train, y_train)
-
-training_time = time.perf_counter() - start
-
-# Cross Validate the score Grid's best estimator on entire data set
-scores = cross_val_score(grid.best_estimator_, X, y)
-
-# Predict and Test on test data
-y_pred = grid.predict(X_test)
-
-r2 = r2_score(y_test, y_pred)
-
-print("\n Results from VotingRegressor (VR) Grid Search ")
-print("\n VR best estimator across ALL searched params:\n", grid.best_estimator_)
-print("\n VR Validation Score:\n", grid.best_score_)
-print("\n VR best params:\n", grid.best_params_)
-print(f"\n VR Cross Validation Scores: {scores}")
-print("\n VR accuracy on data: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-print("\n VR R2 score: %0.2f" % r2)
-
-#  The best estimator across ALL searched params:
-#  Pipeline(steps=[('scaler', StandardScaler()),
-#                 ('feature_selection', 'passthrough'),
-#                 ('regressor',
-#                  VotingRegressor(estimators=[('catboost',
-#                                               <catboost.core.CatBoostRegressor object at 0x000001EC7395D9C8>),
-#                                              ('randforest',
-#                                               RandomForestRegressor()),
-#                                              ('enet',
-#                                               ElasticNet(alpha=100.0,
-#                                                          l1_ratio=1.0)),
-#                                              ('lr', LinearRegression()),
-#                                              ('kn',
-#                                               KNeighborsRegressor(weights='distance'))]))])
-
-#  The best score across ALL searched params on training set:
-#  0.7083747321339595
-
-#  The best parameters across ALL searched params:
-#  {'feature_selection': 'passthrough', 'regressor': VotingRegressor(estimators=[('catboost',
-#                              <catboost.core.CatBoostRegressor object at 0x000002E4716CA808>),
-#                             ('randforest', RandomForestRegressor()),
-#                             ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
-#                             ('lr', LinearRegression()),
-#                             ('kn', KNeighborsRegressor(weights='distance'))]),
-#                             'scaler': StandardScaler()}
-
-#  Scores of best_estimator_ on the data: [0.74352553 0.76199269 0.75090107 0.27040379 0.7059236 ]
-
-#  Accuracy on data: 0.65 (+/- 0.38)
-
-#  R2 score on test set: 0.71

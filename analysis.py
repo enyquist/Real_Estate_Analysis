@@ -24,7 +24,7 @@ import os
 import pickle
 import logging
 
-from utils.functions import RealEstateData
+from utils.RealEstateData import RealEstateData
 
 #######################################################################################################################
 # Config Log File
