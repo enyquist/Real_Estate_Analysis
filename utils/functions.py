@@ -102,7 +102,7 @@ def score_my_model(my_df, my_model):
     """
     Wrapper to score a model
     :param my_df: DataFrame of features
-    :param my_model: an instance of an sklearn model. Must have a .fit method implemented
+    :param my_model: an instance of an sklearn RandomizedSearchCV model. Must have a .best_estimator_ method implemented
     :return:
     """
 

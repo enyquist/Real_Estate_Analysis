@@ -1,27 +1,23 @@
 import numpy as np
-import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.feature_selection import SelectFromModel, RFECV
 from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor, IsolationForest, VotingRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import r2_score
 from catboost import CatBoostRegressor
 import matplotlib.pyplot as plt
 import seaborn as sns
-import time
 import os
 import pickle
 
 from utils.RealEstateData import RealEstateData
-from utils.functions import create_logger
+from utils.functions import train_my_model, score_my_model, create_logger
 
 #######################################################################################################################
 # Config Log File
@@ -73,25 +69,10 @@ list_features = [
 
 df_sf_features = df_sf[list_features]
 
-# Clean DataFrame
-df_sf_features_clean = df_sf_features.fillna(0, axis=1)
-
-# split into input and output elements
-X, y = df_sf_features_clean.drop('list_price', axis=1).values, df_sf_features_clean['list_price'].values
-
-# Outlier Detection
-clf = IsolationForest(random_state=42).fit_predict(X)
-
-# Mask outliers
-mask = np.where(clf == -1)
-
-# Split data using outlier-free data
-X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0), np.delete(y, mask), test_size=0.2, random_state=42)
-
 # Define Pipeline
 regression_pipe = Pipeline([
     ('scaler', StandardScaler()),
-    ('feature_selection', SelectFromModel(CatBoostRegressor())),
+    ('feature_selection', SelectFromModel(CatBoostRegressor)),
     ('regressor', CatBoostRegressor())
 ])
 
@@ -173,69 +154,51 @@ param_grid = [
     }
 ]
 
-# Create Grid
-grid = GridSearchCV(estimator=regression_pipe, param_grid=param_grid, cv=5, n_jobs=-1)
+logger.info('Starting Regressor Training')
 
-# Train Grid on train data
-start = time.perf_counter()
+model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
 
-logger.info('Starting Exhaustive Grid Search')
+logger.info('Regressor Training Complete')
 
-grid.fit(X_train, y_train)
+list_scores = score_my_model(my_df=df_sf_features, my_model=model)
 
-logger.info('Grid Search Complete')
+logger.info('Results from Randomized Grid Search (RGS):')
+logger.info(f'RGS best estimator: {model.best_estimator_}')
+logger.info(f'RGS Validation Score: {model.best_score_}')
+logger.info(f'RGS Best params: {model.best_params_}')
+logger.info(f'RGS Cross Validation Scores: {list_scores[0]}')
+logger.info(f"RGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
+logger.info(f"RGS test score: %0.2f" % list_scores[3])
+logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
 
-training_time = time.perf_counter() - start
+# RANDOMIZEDSEARCHCV OUTPUT
 
-# Capture and save results for compute later
-my_df = pd.DataFrame.from_dict(grid.cv_results_)
+# 2020-12-23 14:02:05,060:MainProcess:root:INFO:Results from Randomized Grid Search (RGS):
 
-my_df.to_csv('01 Misc/grid_results.csv')
-
-with open('01 Misc/exhaustive_grid.pickle', 'wb+') as file:
-    pickle.dump(grid, file)
-
-logger.info('Grid object and cv_results_ saved')
-
-# Cross Validate the score Grid's best estimator on entire data set
-scores = cross_val_score(grid.best_estimator_, X, y)
-
-# Predict and Test on test data
-y_pred = grid.predict(X_test)
-
-r2 = r2_score(y_test, y_pred)
-
-logger.info('Results from Exhaustive Grid Search (EGS):')
-logger.info(f'EGS best estimator: {grid.best_estimator_}')
-logger.info(f'EGS Validation Score: {grid.best_score_}')
-logger.info(f'EGS Best params: {grid.best_params_}')
-logger.info(f'EGS Cross Validation Scores: {scores}')
-logger.info(f"EGS accuracy on data: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-logger.info(f"EGS R2 score: %0.2f" % r2)
-
-# GRID CATBOOSTREGRESSOR OUTPUT
-
-# The best estimator across ALL searched params:
-#  Pipeline(steps=[('scaler', QuantileTransformer()),
+# 2020-12-23 14:02:05,063:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
 #                 ('feature_selection',
-#                  SelectFromModel(estimator=<catboost.core.CatBoostRegressor object at 0x00000200F0EA6EC8>)),
+#                  RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000020873F919C8>,
+#                        step=0.2)),
 #                 ('regressor',
-#                  <catboost.core.CatBoostRegressor object at 0x00000200F0EA6C48>)])
+#                  <catboost.core.CatBoostRegressor object at 0x000002087505D448>)])
 
-# The best score across ALL searched params on training set:
-#   0.8124534438242197
+# 2020-12-23 14:02:05,063:MainProcess:root:INFO:RGS Validation Score: 0.6797365755730966
 
-# The best parameters across ALL searched params:
-#  {'feature_selection': SelectFromModel(estimator=<catboost.core.CatBoostRegressor object at 0x00000200EFC601C8>),
-#  'regressor': <catboost.core.CatBoostRegressor object at 0x00000200EFC603C8>,
-#  'regressor__depth': 6,
-#  'regressor__iterations': 1000,
-#  'regressor__learning_rate': 0.05,
-#  'regressor__loss_function': 'RMSE',
-#  'scaler': QuantileTransformer()}
+# 2020-12-23 14:02:05,064:MainProcess:root:INFO:
+# RGS Best params: {'scaler': RobustScaler(),
+# 'regressor__loss_function': 'RMSE',
+# 'regressor__learning_rate': 0.05,
+# 'regressor__iterations': 1000,
+# 'regressor__depth': 6,
+# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000020873F51208>,
+# 'feature_selection': RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000020873F51408>,
+#       step=0.2)}
 
-# Scores of best_estimator_ on the data: [0.61991392 0.8101451  0.72269698 0.25037767 0.72657418]
+# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS Cross Validation Scores:
+# [0.74567611 0.82943665 0.74755348 0.53558083 0.78026391]
 
-# Accuracy on data: 0.63 (+/- 0.39)
+# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS accuracy on all data: 0.73 (+/- 0.20)
 
-# R2 score on test set: 0.61
+# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS test score: 0.66
+
+# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS R2 score: 0.66
