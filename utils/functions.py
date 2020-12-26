@@ -4,14 +4,16 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSe
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import r2_score
 import logging
+from io import StringIO, BytesIO
+import gzip
 
 
 def create_logger(e_handler_name, t_handler_name):
     """
     Wrapper to create logger for errors and training records
-    :param e_handler_name:
-    :param t_handler_name:
-    :return:
+    :param e_handler_name: filepath to logger as string
+    :param t_handler_name: filepath to logger as string
+    :return: logger object
     """
 
     logger = logging.getLogger()
@@ -119,3 +121,31 @@ def score_my_model(my_df, my_model):
     r2 = r2_score(y_test, y_pred)
 
     return [scores, scores.mean(), scores.std() * 2, model_score, r2]
+
+
+def pandas_to_s3(df, client, bucket, key):
+    """
+    Wrapper to stream DataFrames to an s3 bucket
+    :param df: DataFrame
+    :param client: S3 client
+    :param bucket: S3 bucket
+    :param key: Key of object or path to object in non-s3 terms
+    :return: API response metadata
+    """
+    # Write DF to string stream
+    csv_buffer = StringIO()
+    df.to_csv(csv_buffer, index=False)
+
+    # Reset stream position
+    csv_buffer.seek(0)
+    # Create binary stream
+    gz_buffer = BytesIO()
+
+    # Compress string stream using gzip
+    with gzip.GzipFile(mode='w', fileobj=gz_buffer) as gz_file:
+        gz_file.write(bytes(csv_buffer.getvalue(), 'utf-8'))
+
+    # Write stream to S3
+    response = client.put_object(Bucket=bucket, Key=key, Body=gz_buffer.getvalue())
+
+    return response

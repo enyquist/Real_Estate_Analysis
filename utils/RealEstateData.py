@@ -62,18 +62,12 @@ class RealEstateData:
                 'x-rapidapi-key': RAPIDAPI_KEY,
                 'x-rapidapi-host': RAPIDAPI_HOST_RE
             }
-            try:
-                response = requests.request("GET", url, headers=headers, params=querystring)
 
-            except requests.exceptions.RequestException as e:
-                raise SystemExit(e)
+            response = requests.request("GET", url, headers=headers, params=querystring)
 
             if response.status_code == 200:
                 json_content = json.loads(response.content)
-                housing_total = json_content['data']['total']
-                return housing_total, json_content
-            else:
-                print('Error')
+                list_json_data.append(json_content)
 
         return list_json_data
 
@@ -96,22 +90,29 @@ class RealEstateData:
             'x-rapidapi-host': RAPIDAPI_HOST_RE
         }
 
-        try:
-            response = requests.request("GET", url, headers=headers, params=querystring)
-
-        except requests.exceptions.RequestException as e:
-            raise SystemExit(e)
+        response = requests.request("GET", url, headers=headers, params=querystring)
 
         if response.status_code == 200:
             json_content = json.loads(response.content)
+            housing_total = json_content['data']['total']
+            return housing_total, json_content
 
-            if json_content['status'] == 500:
-                pass
-            else:
-                housing_total = json_content['data']['total']
-                return housing_total, json_content
-        else:
-            pass
+        # try:
+        #     response = requests.request("GET", url, headers=headers, params=querystring)
+        #
+        # except requests.exceptions.RequestException as e:
+        #     raise SystemExit(e)
+        #
+        # if response.status_code == 200:
+        #     json_content = json.loads(response.content)
+        #
+        #     if json_content['status'] == 500:
+        #         pass
+        #     else:
+        #         housing_total = json_content['data']['total']
+        #         return housing_total, json_content
+        # else:
+        #     pass
 
     @staticmethod
     def define_chunks(total, chunk=RAPIDAPI_OFFSET):
