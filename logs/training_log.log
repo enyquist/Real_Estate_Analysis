@@ -977,3 +977,186 @@
 2020-12-23 14:53:41,381:MainProcess:root:INFO:VGS R2 score: 0.67
 2020-12-23 14:58:06,713:MainProcess:root:INFO:VGS Validation Score: 0.64
 2020-12-23 14:58:06,713:MainProcess:root:INFO:VGS Validation Score: 0.64
+2020-12-27 09:07:55,264:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 09:14:10,977:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 09:33:09,677:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 09:33:28,585:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 09:35:15,944:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 09:35:38,283:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 09:35:38,306:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x00000191F5F905C8>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 09:35:38,306:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 09:35:38,309:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x00000191F55BA588>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 09:35:38,310:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.74670894    0.71200369 -182.52320453    0.28959305    0.71257525]
+2020-12-27 09:35:38,310:MainProcess:root:INFO:VGS accuracy on all data: -36.01 (+/- 146.51)
+2020-12-27 09:35:38,310:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 09:35:38,310:MainProcess:root:INFO:VGS R2 score: 0.75
+2020-12-27 12:01:48,037:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 12:01:48,037:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 12:03:43,867:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 12:03:43,867:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 12:04:06,080:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 12:04:06,080:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 12:04:06,103:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x00000191F4F0DF08>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 12:04:06,103:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x00000191F4F0DF08>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 12:04:06,103:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 12:04:06,103:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x00000191F4776CC8>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x00000191F4776CC8>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.74769803    0.7102489  -182.30574393    0.29369963    0.71383632]
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.74769803    0.7102489  -182.30574393    0.29369963    0.71383632]
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS accuracy on all data: -35.97 (+/- 146.34)
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS accuracy on all data: -35.97 (+/- 146.34)
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS R2 score: 0.75
+2020-12-27 12:04:06,107:MainProcess:root:INFO:VGS R2 score: 0.75
+2020-12-27 12:37:02,037:MainProcess:root:INFO:Starting Regressor Training
+2020-12-27 12:37:02,037:MainProcess:root:INFO:Starting Regressor Training
+2020-12-27 12:37:10,475:MainProcess:root:INFO:Starting Regressor Training
+2020-12-27 13:32:33,579:MainProcess:root:INFO:Regressor Training Complete
+2020-12-27 13:40:05,885:MainProcess:root:INFO:Results from Randomized Grid Search (RGS):
+2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
+                ('feature_selection',
+                 RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F76C2B548>,
+                       step=0.2)),
+                ('regressor',
+                 <catboost.core.CatBoostRegressor object at 0x0000028F76C2B448>)])
+2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS Validation Score: 0.8491577972346784
+2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Best params: {'scaler': RobustScaler(), 'regressor__loss_function': 'RMSE', 'regressor__learning_rate': 0.05, 'regressor__iterations': 1500, 'regressor__depth': 8, 'regressor': <catboost.core.CatBoostRegressor object at 0x0000028F74F2D448>, 'feature_selection': RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F7674D048>,
+      step=0.2)}
+2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Cross Validation Scores: [ 0.81946377  0.74768273  0.70388037 -0.10789635  0.62905247]
+2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS accuracy on all data: 0.56 (+/- 0.68)
+2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS test score: 0.86
+2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS R2 score: 0.86
+2020-12-27 13:49:34,271:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 13:49:34,271:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 13:53:46,768:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 13:53:46,768:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 13:54:34,704:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 13:54:34,704:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 13:54:34,730:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x0000028F76773888>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 13:54:34,730:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x0000028F76773888>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 13:54:34,730:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 13:54:34,730:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x0000028F73B6A9C8>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x0000028F73B6A9C8>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.746608      0.70370181 -182.18660426    0.29693592    0.71109882]
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.746608      0.70370181 -182.18660426    0.29693592    0.71109882]
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS accuracy on all data: -35.95 (+/- 146.24)
+2020-12-27 13:54:34,734:MainProcess:root:INFO:VGS accuracy on all data: -35.95 (+/- 146.24)
+2020-12-27 13:54:34,735:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 13:54:34,735:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 13:54:34,735:MainProcess:root:INFO:VGS R2 score: 0.75
+2020-12-27 13:54:34,735:MainProcess:root:INFO:VGS R2 score: 0.75
+2020-12-27 13:54:55,683:MainProcess:root:INFO:Starting Voting Regressor Training
+2020-12-27 13:59:07,835:MainProcess:root:INFO:Voting Regressor Training Complete
+2020-12-27 13:59:55,668:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x0000020274D79288>),
+                                             ('randforest',
+                                              RandomForestRegressor()),
+                                             ('enet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0)),
+                                             ('lr', LinearRegression()),
+                                             ('kn',
+                                              KNeighborsRegressor(weights='distance'))]))])
+2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS Validation Score: 0.75
+2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x00000202730BD548>),
+                            ('randforest', RandomForestRegressor()),
+                            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                            ('lr', LinearRegression()),
+                            ('kn', KNeighborsRegressor(weights='distance'))]), 'feature_selection': 'passthrough'}
+2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Cross Validation Scores: [   0.74659476    0.70264914 -182.24063743    0.29708606    0.7109509 ]
+2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS accuracy on all data: -35.96 (+/- 146.28)
+2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS test score: 0.75
+2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS R2 score: 0.75

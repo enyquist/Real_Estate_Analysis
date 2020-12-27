@@ -5,13 +5,8 @@ from sklearn.ensemble import RandomForestRegressor, VotingRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.neighbors import KNeighborsRegressor
 from catboost import CatBoostRegressor
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import pickle
 
-from utils.RealEstateData import RealEstateData
-from utils.functions import train_my_model, score_my_model, create_logger
+from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
 
 #######################################################################################################################
 # Config Log File
@@ -20,29 +15,17 @@ from utils.functions import train_my_model, score_my_model, create_logger
 logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
 
 #######################################################################################################################
-# Placeholder for user input
+# Data
 #######################################################################################################################
 
-str_city = 'Durham'
-str_state_code = 'NC'
+# Retrieve data from s3 and format into dataframe
+bucket = 're-raw-data'
+prefix = '2020-12-27'
 
-#######################################################################################################################
-# Initialize City Data
-#######################################################################################################################
-
-# def main(str_city, str_state_code):
-# durham = RealEstateData(str_city, str_state_code)
-
-
-# if __name__ == '__main__':
-if os.path.exists('01 Misc/durham.pickle'):
-    with open('01 Misc/durham.pickle', 'rb') as file:
-        df_durham = pickle.load(file)
-else:
-    df_durham = RealEstateData(str_city, str_state_code).results
+df = create_df_from_s3(bucket=bucket, prefix=prefix)
 
 # Parse into unique DataFrame for each type of real estate
-df_sf = df_durham[df_durham['description.type'] == 'single_family']
+df_sf = df[df['description.type'] == 'single_family']
 
 # ID features
 list_features = [
@@ -63,31 +46,27 @@ list_features = [
 
 df_sf_features = df_sf[list_features]
 
+# Force to numeric, as pandas_to_s3 casts everything to strings
+df_sf_features = df_sf_features.astype('float32')
+
+best_catboost = CatBoostRegressor(depth=8,
+                                  iterations=1500,
+                                  learning_rate=0.05,
+                                  loss_function='RMSE')
+
 # Define Pipeline
 regression_pipe = Pipeline([
     ('scaler', StandardScaler()),
-    ('feature_selection', SelectFromModel(CatBoostRegressor(depth=6,
-                                                            iterations=1000,
-                                                            learning_rate=0.05,
-                                                            loss_function='RMSE'
-                                                            ))),
+    ('feature_selection', SelectFromModel(best_catboost)),
     ('regressor', CatBoostRegressor())
 ])
 
 param_grid = [
     {  # VotingRegressor
         'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough', SelectFromModel(CatBoostRegressor(depth=6,
-                                                                               iterations=1000,
-                                                                               learning_rate=0.05,
-                                                                               loss_function='RMSE'
-                                                                               ))],
+        'feature_selection': ['passthrough', SelectFromModel(best_catboost)],
         'regressor': [VotingRegressor([
-            ('catboost', CatBoostRegressor(depth=6,
-                                           iterations=1000,
-                                           learning_rate=0.05,
-                                           loss_function='RMSE'
-                                           )),
+            ('catboost', best_catboost),
             ('randforest', RandomForestRegressor()),
             ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
             ('lr', LinearRegression()),
@@ -194,3 +173,44 @@ logger.info(f"VGS R2 score: %0.2f" % list_scores[4])
 # 2020-12-23 14:53:41,380:MainProcess:root:INFO:VGS accuracy on all data: 0.71 (+/- 0.14)
 
 # 2020-12-23 14:53:41,380:MainProcess:root:INFO:VGS test score: 0.67
+
+#######################################################################################################################
+# s3 Data - Durham, Raleigh, Greensboro, Fayetteville, Charlotte
+#######################################################################################################################
+
+# 2020-12-27 13:59:55,668:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+
+# 2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+#                 ('feature_selection', 'passthrough'),
+#                 ('regressor',
+#                  VotingRegressor(estimators=[('catboost',
+#                                               <catboost.core.CatBoostRegressor object at 0x0000020274D79288>),
+#                                              ('randforest',
+#                                               RandomForestRegressor()),
+#                                              ('enet',
+#                                               ElasticNet(alpha=100.0,
+#                                                          l1_ratio=1.0)),
+#                                              ('lr', LinearRegression()),
+#                                              ('kn',
+#                                               KNeighborsRegressor(weights='distance'))]))])
+
+# 2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS Validation Score: 0.75
+
+# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Best params:
+# {'scaler': StandardScaler(),
+# 'regressor': VotingRegressor(estimators=[('catboost',
+#                              <catboost.core.CatBoostRegressor object at 0x00000202730BD548>),
+#                             ('randforest', RandomForestRegressor()),
+#                             ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+#                             ('lr', LinearRegression()),
+#                             ('kn', KNeighborsRegressor(weights='distance'))]),
+#                             'feature_selection': 'passthrough'}
+
+# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Cross Validation Scores:
+# [   0.74659476    0.70264914 -182.24063743    0.29708606    0.7109509 ]
+
+# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS accuracy on all data: -35.96 (+/- 146.28)
+
+# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS test score: 0.75
+
+# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS R2 score: 0.75

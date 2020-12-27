@@ -1,4 +1,6 @@
+import boto3
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score
 from sklearn.impute import SimpleImputer
@@ -6,6 +8,10 @@ from sklearn.metrics import r2_score
 import logging
 from io import StringIO, BytesIO
 import gzip
+import os
+
+AWS_ACCESS_KEY_ID = os.environ.get('realEstateUserAWS_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('realEstateUserAWS_Key')
 
 
 def create_logger(e_handler_name, t_handler_name):
@@ -54,6 +60,9 @@ def prepare_my_data(my_df):
 
     # Imputer Instance
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+
+    # Drop entries that have no list_price
+    my_df = my_df[my_df['list_price'].notna()]
 
     # split into input and output elements
     X, y = my_df.drop('list_price', axis=1).values, my_df['list_price'].values
@@ -125,10 +134,11 @@ def score_my_model(my_df, my_model):
 
 def pandas_to_s3(df, client, bucket, key):
     """
-    Wrapper to stream DataFrames to an s3 bucket
+    Wrapper to stream DataFrames to an s3 bucket. Credit to Lukasz uhho
+    https://gist.github.com/uhho/a1490ae2abd112b556dcd539750aa151
     :param df: DataFrame
-    :param client: S3 client
-    :param bucket: S3 bucket
+    :param client: s3 client
+    :param bucket: s3 bucket
     :param key: Key of object or path to object in non-s3 terms
     :return: API response metadata
     """
@@ -149,3 +159,73 @@ def pandas_to_s3(df, client, bucket, key):
     response = client.put_object(Bucket=bucket, Key=key, Body=gz_buffer.getvalue())
 
     return response
+
+
+def s3_to_pandas(client, bucket, key, header=None):
+    """
+    Wrapper to stream DataFrames from an s3 bucket. Credit to Lukasz uhho
+    https://gist.github.com/uhho/a1490ae2abd112b556dcd539750aa151
+    :param client: s3 client
+    :param bucket: s3 bucket
+    :param key: Key of object or path to object in non-s3 terms
+    :param header:
+    :return:
+    """
+    # Get key using boto3 client
+    obj = client.get_object(Bucket=bucket, Key=key)
+    gz = gzip.GzipFile(fileobj=obj['Body'])
+
+    # load stream directly to DF
+    return pd.read_csv(gz, header=header, dtype=str)
+
+
+def s3_to_pandas_with_processing(client, bucket, key, header=None):
+    """
+    Wrapper to stream DataFrames from an s3 bucket. Credit to Lukasz uhho
+    https://gist.github.com/uhho/a1490ae2abd112b556dcd539750aa151
+    :param client: s3 client
+    :param bucket: s3 bucket
+    :param key: Key of object or path to object in non-s3 terms
+    :param header:
+    :return:
+    """
+    # Get key using boto3 client
+    obj = client.get_object(Bucket=bucket, Key=key)
+    gz = gzip.GzipFile(fileobj=obj['Body'])
+
+    # Replace some characters in incomming stream and load it to DF
+    lines = "\n".join([line.replace('?', ' ') for line in gz.read().decode('utf-8').split('\n')])
+    return pd.read_csv(StringIO(lines), header=header, dtype=str)
+
+
+def create_df_from_s3(bucket, prefix):
+    """
+
+    :param bucket:
+    :param prefix:
+    :return:
+    """
+    s3 = boto3.client('s3',
+                      region_name='us-east-1',
+                      aws_access_key_id=AWS_ACCESS_KEY_ID,
+                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+
+    # Get response from s3 with data on date PREFIX from bucket re-raw-data
+    response = s3.list_objects(Bucket=bucket, Prefix=prefix)
+
+    # Lists
+    list_data = []
+    list_contents = response['Contents']
+
+    for content in list_contents:
+        key = content['Key']
+        data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key)
+        data.columns = data.iloc[0]
+        data = data.drop(0)
+        data = data.reset_index(drop=True)
+        list_data.append(data)
+
+    # Concat data into master Dataframe
+    df = pd.concat(list_data)
+
+    return df

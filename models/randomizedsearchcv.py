@@ -11,13 +11,10 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from catboost import CatBoostRegressor
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import pickle
 
-from utils.RealEstateData import RealEstateData
-from utils.functions import train_my_model, score_my_model, create_logger
+from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
 
 #######################################################################################################################
 # Config Log File
@@ -26,29 +23,17 @@ from utils.functions import train_my_model, score_my_model, create_logger
 logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
 
 #######################################################################################################################
-# Placeholder for user input
+# Data
 #######################################################################################################################
 
-str_city = 'Durham'
-str_state_code = 'NC'
+# Retrieve data from s3 and format into dataframe
+bucket = 're-raw-data'
+prefix = '2020-12-27'
 
-#######################################################################################################################
-# Initialize City Data
-#######################################################################################################################
-
-# def main(str_city, str_state_code):
-# durham = RealEstateData(str_city, str_state_code)
-
-
-# if __name__ == '__main__':
-if os.path.exists('01 Misc/durham.pickle'):
-    with open('01 Misc/durham.pickle', 'rb') as file:
-        df_durham = pickle.load(file)
-else:
-    df_durham = RealEstateData(str_city, str_state_code).results
+df = create_df_from_s3(bucket=bucket, prefix=prefix)
 
 # Parse into unique DataFrame for each type of real estate
-df_sf = df_durham[df_durham['description.type'] == 'single_family']
+df_sf = df[df['description.type'] == 'single_family']
 
 # ID features
 list_features = [
@@ -68,6 +53,9 @@ list_features = [
 ]
 
 df_sf_features = df_sf[list_features]
+
+# Force to numeric, as pandas_to_s3 casts everything to strings
+df_sf_features = df_sf_features.astype('float32')
 
 # Define Pipeline
 regression_pipe = Pipeline([
@@ -202,3 +190,38 @@ logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
 # 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS test score: 0.66
 
 # 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS R2 score: 0.66
+
+#######################################################################################################################
+# s3 Data - Durham, Raleigh, Greensboro, Fayetteville, Charlotte
+#######################################################################################################################
+
+# 2020-12-27 13:40:05,885:MainProcess:root:INFO:Results from Randomized Grid Search (RGS):
+
+# 2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
+#                 ('feature_selection',
+#                  RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F76C2B548>,
+#                        step=0.2)),
+#                 ('regressor',
+#                  <catboost.core.CatBoostRegressor object at 0x0000028F76C2B448>)])
+
+# 2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS Validation Score: 0.8491577972346784
+
+# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Best params:
+# {'scaler': RobustScaler(),
+# 'regressor__loss_function': 'RMSE',
+# 'regressor__learning_rate': 0.05,
+# 'regressor__iterations': 1500,
+# 'regressor__depth': 8,
+# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000028F74F2D448>,
+# 'feature_selection': RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F7674D048>,
+#       step=0.2)}
+
+# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Cross Validation Scores:
+# [ 0.81946377  0.74768273  0.70388037 -0.10789635  0.62905247]
+
+# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS accuracy on all data: 0.56 (+/- 0.68)
+
+# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS test score: 0.86
+
+# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS R2 score: 0.86
+
