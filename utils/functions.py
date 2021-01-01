@@ -61,6 +61,12 @@ def prepare_my_data(my_df):
     # Imputer Instance
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
 
+    # Force to numeric, as pandas_to_s3 casts everything to strings
+    my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='coerce'))
+
+    # Drop Duplicates
+    my_df = my_df.drop_duplicates()
+
     # Drop entries that have no list_price
     my_df = my_df[my_df['list_price'].notna()]
 
@@ -85,28 +91,49 @@ def prepare_my_data(my_df):
     return X, y, X_train, X_test, y_train, y_test
 
 
-def train_my_model(my_df, my_pipeline, my_param_grid, search=50):
+def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random'):
     """
     Wrapper for training a regression model to predict housing prices
     :param my_df: DataFrame of features
     :param my_pipeline: Training Pipeline, an instance of sklearn's Pipeline
     :param my_param_grid: Dictionary containing the parameters to train over
     :param search: Number of iterations to search in RandomizedSearchCV, default 50
+    :param style: Search style, default to RandomizedSearchCV
     :return: RandomizedSearchCV object
     """
 
     _, _, X_train, _, y_train, _ = prepare_my_data(my_df)
 
-    # Create RandomizedSearchCV instance
-    rscv = RandomizedSearchCV(estimator=my_pipeline,
-                              param_distributions=my_param_grid,
-                              n_iter=search,
-                              cv=5,
-                              n_jobs=-1)
+    if style == 'random':
+        # Create RandomizedSearchCV instance
+        cv = RandomizedSearchCV(estimator=my_pipeline,
+                                param_distributions=my_param_grid,
+                                n_iter=search,
+                                cv=5,
+                                n_jobs=-1,
+                                verbose=10)
 
-    rscv.fit(X_train, y_train)
+        cv.fit(X_train, y_train)
 
-    return rscv
+    if style == 'grid':
+        # Create RandomizedSearchCV instance
+        cv = GridSearchCV(estimator=my_pipeline,
+                          param_grid=my_param_grid,
+                          cv=5,
+                          n_jobs=-1,
+                          verbose=10)
+
+        cv.fit(X_train, y_train)
+
+        # Save cv_results to inspect for best model params  # todo check this programmatically
+        df = pd.DataFrame.from_dict(cv.cv_results_)
+
+        df.to_csv('01 Misc/grid_search_cv.csv')
+
+    else:  # todo alert user to error
+        return None
+
+    return cv
 
 
 def score_my_model(my_df, my_model):
@@ -198,11 +225,10 @@ def s3_to_pandas_with_processing(client, bucket, key, header=None):
     return pd.read_csv(StringIO(lines), header=header, dtype=str)
 
 
-def create_df_from_s3(bucket, prefix):
+def create_df_from_s3(bucket):
     """
 
     :param bucket:
-    :param prefix:
     :return:
     """
     s3 = boto3.client('s3',
@@ -211,7 +237,7 @@ def create_df_from_s3(bucket, prefix):
                       aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 
     # Get response from s3 with data on date PREFIX from bucket re-raw-data
-    response = s3.list_objects(Bucket=bucket, Prefix=prefix)
+    response = s3.list_objects(Bucket=bucket)
 
     # Lists
     list_data = []
@@ -227,5 +253,8 @@ def create_df_from_s3(bucket, prefix):
 
     # Concat data into master Dataframe
     df = pd.concat(list_data)
+
+    # Drop any duplicates in the dataset
+    df = df.drop_duplicates()
 
     return df

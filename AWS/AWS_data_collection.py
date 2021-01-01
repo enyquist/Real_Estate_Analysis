@@ -36,7 +36,7 @@ def main():
             city = row['city']
             state = row['state']
             df_data = RealEstateData(city, state).results
-            str_filename = f'{today.strftime("%Y-%m-%d")}-{city}-{state}'
+            str_filename = f'{state}-{city}'
 
             # Stream to s3
             try:
@@ -51,7 +51,7 @@ def main():
                 logger.error(f'{str_filename} resulted in error: {e}')
 
     # Save df_city_log
-    df_city_log.to_csv('AWS/resources/city_log.csv')
+    df_city_log.to_csv('AWS/resources/city_log.csv', index=False)
 
 
 if __name__ == '__main__':

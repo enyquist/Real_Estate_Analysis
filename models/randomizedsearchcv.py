@@ -11,153 +11,157 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from catboost import CatBoostRegressor
-import os
-import pickle
 
 from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
 
-#######################################################################################################################
-# Config Log File
-#######################################################################################################################
 
-logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
+def main():
+    ####################################################################################################################
+    # Config Log File
+    ####################################################################################################################
 
-#######################################################################################################################
-# Data
-#######################################################################################################################
+    logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
 
-# Retrieve data from s3 and format into dataframe
-bucket = 're-raw-data'
-prefix = '2020-12-27'
+    ####################################################################################################################
+    # Define Pipeline and variables
+    ####################################################################################################################
 
-df = create_df_from_s3(bucket=bucket, prefix=prefix)
+    bucket = 're-raw-data'
 
-# Parse into unique DataFrame for each type of real estate
-df_sf = df[df['description.type'] == 'single_family']
+    # Define Pipeline
+    regression_pipe = Pipeline([
+        ('scaler', StandardScaler()),
+        ('feature_selection', SelectFromModel(CatBoostRegressor)),
+        ('regressor', CatBoostRegressor())
+    ])
 
-# ID features
-list_features = [
-    'description.year_built',
-    'description.baths_full',
-    'description.baths_3qtr',
-    'description.baths_half',
-    'description.baths_1qtr',
-    'description.lot_sqft',
-    'description.sqft',
-    'description.garage',
-    'description.beds',
-    'description.stories',
-    'location.address.coordinate.lon',
-    'location.address.coordinate.lat',
-    'list_price'
-]
+    param_grid = [
+        {  # CatBoostRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(CatBoostRegressor()),
+                                  RFECV(CatBoostRegressor(), step=0.2)],
+            'regressor': [CatBoostRegressor()],
+            'regressor__depth': [4, 6, 8, 10],
+            'regressor__learning_rate': [0.01, 0.05, 0.1],
+            'regressor__iterations': [500, 1000, 1500],
+            'regressor__loss_function': ['RMSE']
+        },
+        {  # GaussianProcessRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough'],
+            'regressor': [GaussianProcessRegressor()],
+            'regressor__kernel': [DotProduct() + WhiteKernel()]
+        },
+        {  # SVR with Feature Selection
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(SVR(kernel='linear')),
+                                  RFECV(SVR(kernel='linear'), step=0.2)],
+            'regressor': [SVR()],
+            'regressor__kernel': ['linear'],
+            'regressor__C': np.linspace(start=1, stop=100, num=5)
+        },
+        {  # SVR
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough'],
+            'regressor': [SVR()],
+            'regressor__kernel': ['poly', 'rbf'],
+            'regressor__C': np.linspace(start=1, stop=100, num=5)
+        },
+        {  # ElasticNet
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(ElasticNet()),
+                                  RFECV(ElasticNet(), step=0.2)],
+            'regressor': [ElasticNet()],
+            'regressor__alpha': np.linspace(start=1, stop=100, num=5),
+            'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
+        },
+        {  # DecisionTreeRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(DecisionTreeRegressor()),
+                                  RFECV(DecisionTreeRegressor(), step=0.2)],
+            'regressor': [DecisionTreeRegressor()]
+        },
+        {  # KNeighborsRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough'],
+            'regressor': [KNeighborsRegressor()],
+            'regressor__n_neighbors': [5, 10, 15],
+            'regressor__weights': ['uniform', 'distance']
+        },
+        {  # RandomForestRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(RandomForestRegressor()),
+                                  RFECV(RandomForestRegressor(), step=0.2)],
+            'regressor': [RandomForestRegressor()]
+        },
+        {  # MLPRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough'],
+            'regressor': [MLPRegressor()]
+        },
+        {  # LinearRegression
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(LinearRegression()),
+                                  RFECV(LinearRegression(), step=0.2)],
+            'regressor': [LinearRegression()]
+        }
+    ]
 
-df_sf_features = df_sf[list_features]
+    ####################################################################################################################
+    # Data
+    ####################################################################################################################
 
-# Force to numeric, as pandas_to_s3 casts everything to strings
-df_sf_features = df_sf_features.astype('float32')
+    # Retrieve data from s3 and format into dataframe
+    df = create_df_from_s3(bucket=bucket)
 
-# Define Pipeline
-regression_pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('feature_selection', SelectFromModel(CatBoostRegressor)),
-    ('regressor', CatBoostRegressor())
-])
+    # Parse into unique DataFrame for each type of real estate
+    df_sf = df[df['description.type'] == 'single_family']
 
-param_grid = [
-    {  # CatBoostRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(CatBoostRegressor()),
-                              RFECV(CatBoostRegressor(), step=0.2)],
-        'regressor': [CatBoostRegressor()],
-        'regressor__depth': [4, 6, 8, 10],
-        'regressor__learning_rate': [0.01, 0.05, 0.1],
-        'regressor__iterations': [500, 1000, 1500],
-        'regressor__loss_function': ['RMSE']
-    },
-    {  # GaussianProcessRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough'],
-        'regressor': [GaussianProcessRegressor()],
-        'regressor__kernel': [DotProduct() + WhiteKernel()]
-    },
-    {  # SVR with Feature Selection
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(SVR(kernel='linear')),
-                              RFECV(SVR(kernel='linear'), step=0.2)],
-        'regressor': [SVR()],
-        'regressor__kernel': ['linear'],
-        'regressor__C': np.linspace(start=1, stop=100, num=5)
-    },
-    {  # SVR
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough'],
-        'regressor': [SVR()],
-        'regressor__kernel': ['poly', 'rbf'],
-        'regressor__C': np.linspace(start=1, stop=100, num=5)
-    },
-    {  # ElasticNet
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(ElasticNet()),
-                              RFECV(ElasticNet(), step=0.2)],
-        'regressor': [ElasticNet()],
-        'regressor__alpha': np.linspace(start=1, stop=100, num=5),
-        'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
-    },
-    {  # DecisionTreeRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(DecisionTreeRegressor()),
-                              RFECV(DecisionTreeRegressor(), step=0.2)],
-        'regressor': [DecisionTreeRegressor()]
-    },
-    {  # KNeighborsRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough'],
-        'regressor': [KNeighborsRegressor()],
-        'regressor__n_neighbors': [5, 10, 15],
-        'regressor__weights': ['uniform', 'distance']
-    },
-    {  # RandomForestRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(RandomForestRegressor()),
-                              RFECV(RandomForestRegressor(), step=0.2)],
-        'regressor': [RandomForestRegressor()]
-    },
-    {  # MLPRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough'],
-        'regressor': [MLPRegressor()]
-    },
-    {  # LinearRegression
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough',
-                              SelectFromModel(LinearRegression()),
-                              RFECV(LinearRegression(), step=0.2)],
-        'regressor': [LinearRegression()]
-    }
-]
+    # ID features
+    list_features = [
+        'description.year_built',
+        'description.baths_full',
+        'description.baths_3qtr',
+        'description.baths_half',
+        'description.baths_1qtr',
+        'description.lot_sqft',
+        'description.sqft',
+        'description.garage',
+        'description.beds',
+        'description.stories',
+        'location.address.coordinate.lon',
+        'location.address.coordinate.lat',
+        'list_price'
+    ]
 
-logger.info('Starting Regressor Training')
+    df_sf_features = df_sf[list_features]
 
-model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
+    logger.info('Starting Regressor Training')
 
-logger.info('Regressor Training Complete')
+    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
 
-list_scores = score_my_model(my_df=df_sf_features, my_model=model)
+    logger.info('Regressor Training Complete')
 
-logger.info('Results from Randomized Grid Search (RGS):')
-logger.info(f'RGS best estimator: {model.best_estimator_}')
-logger.info(f'RGS Validation Score: {model.best_score_}')
-logger.info(f'RGS Best params: {model.best_params_}')
-logger.info(f'RGS Cross Validation Scores: {list_scores[0]}')
-logger.info(f"RGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
-logger.info(f"RGS test score: %0.2f" % list_scores[3])
-logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
+    list_scores = score_my_model(my_df=df_sf_features, my_model=model)
+
+    logger.info('Results from Randomized Grid Search (RGS):')
+    logger.info(f'RGS best estimator: {model.best_estimator_}')
+    logger.info(f'RGS Validation Score: {model.best_score_}')
+    logger.info(f'RGS Best params: {model.best_params_}')
+    logger.info(f'RGS Cross Validation Scores: {list_scores[0]}')
+    logger.info(f"RGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
+    logger.info(f"RGS test score: %0.2f" % list_scores[3])
+    logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
+
+
+if __name__ == '__main__':
+    main()
 
 # RANDOMIZEDSEARCHCV OUTPUT
 
@@ -224,4 +228,3 @@ logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
 # 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS test score: 0.86
 
 # 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS R2 score: 0.86
-

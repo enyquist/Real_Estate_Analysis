@@ -8,89 +8,95 @@ from catboost import CatBoostRegressor
 
 from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
 
-#######################################################################################################################
-# Config Log File
-#######################################################################################################################
 
-logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
+def main():
+    ####################################################################################################################
+    # Config Log File
+    ####################################################################################################################
 
-#######################################################################################################################
-# Data
-#######################################################################################################################
+    logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
 
-# Retrieve data from s3 and format into dataframe
-bucket = 're-raw-data'
-prefix = '2020-12-27'
+    ####################################################################################################################
+    # Define Pipeline and variables
+    ####################################################################################################################
 
-df = create_df_from_s3(bucket=bucket, prefix=prefix)
+    bucket = 're-raw-data'
 
-# Parse into unique DataFrame for each type of real estate
-df_sf = df[df['description.type'] == 'single_family']
+    best_catboost = CatBoostRegressor(depth=8,  # Todo create these programmatically
+                                      iterations=1500,
+                                      learning_rate=0.05,
+                                      loss_function='RMSE')
 
-# ID features
-list_features = [
-    'description.year_built',
-    'description.baths_full',
-    'description.baths_3qtr',
-    'description.baths_half',
-    'description.baths_1qtr',
-    'description.lot_sqft',
-    'description.sqft',
-    'description.garage',
-    'description.beds',
-    'description.stories',
-    'location.address.coordinate.lon',
-    'location.address.coordinate.lat',
-    'list_price'
-]
+    # Define Pipeline
+    regression_pipe = Pipeline([
+        ('scaler', StandardScaler()),
+        ('feature_selection', SelectFromModel(best_catboost)),
+        ('regressor', CatBoostRegressor())
+    ])
 
-df_sf_features = df_sf[list_features]
+    param_grid = [
+        {  # VotingRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough', SelectFromModel(best_catboost)],
+            'regressor': [VotingRegressor([
+                ('catboost', best_catboost),
+                ('randforest', RandomForestRegressor()),
+                ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
+                ('lr', LinearRegression()),
+                ('kn', KNeighborsRegressor(weights='distance', n_neighbors=5))
+            ])],
+        }
+    ]
 
-# Force to numeric, as pandas_to_s3 casts everything to strings
-df_sf_features = df_sf_features.astype('float32')
+    ####################################################################################################################
+    # Data
+    ####################################################################################################################
 
-best_catboost = CatBoostRegressor(depth=8,
-                                  iterations=1500,
-                                  learning_rate=0.05,
-                                  loss_function='RMSE')
+    # Retrieve data from s3 and format into dataframe
+    df = create_df_from_s3(bucket=bucket)
 
-# Define Pipeline
-regression_pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('feature_selection', SelectFromModel(best_catboost)),
-    ('regressor', CatBoostRegressor())
-])
+    # Parse into unique DataFrame for each type of real estate
+    df_sf = df[df['description.type'] == 'single_family']
 
-param_grid = [
-    {  # VotingRegressor
-        'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        'feature_selection': ['passthrough', SelectFromModel(best_catboost)],
-        'regressor': [VotingRegressor([
-            ('catboost', best_catboost),
-            ('randforest', RandomForestRegressor()),
-            ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
-            ('lr', LinearRegression()),
-            ('kn', KNeighborsRegressor(weights='distance', n_neighbors=5))
-        ])],
-    }
-]
+    # ID features
+    list_features = [
+        'description.year_built',
+        'description.baths_full',
+        'description.baths_3qtr',
+        'description.baths_half',
+        'description.baths_1qtr',
+        'description.lot_sqft',
+        'description.sqft',
+        'description.garage',
+        'description.beds',
+        'description.stories',
+        'location.address.coordinate.lon',
+        'location.address.coordinate.lat',
+        'list_price'
+    ]
 
-logger.info('Starting Voting Regressor Training')
+    df_sf_features = df_sf[list_features]
 
-model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
+    logger.info('Starting Voting Regressor Training')
 
-logger.info('Voting Regressor Training Complete')
+    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
 
-list_scores = score_my_model(my_df=df_sf_features, my_model=model)
+    logger.info('Voting Regressor Training Complete')
 
-logger.info('Results from Voting Regressor Randomized Search (VGS):')
-logger.info(f'VGS best estimator: {model.best_estimator_}')
-logger.info(f'VGS Validation Score: %0.2f' % model.best_score_)
-logger.info(f'VGS Best params: {model.best_params_}')
-logger.info(f'VGS Cross Validation Scores: {list_scores[0]}')
-logger.info(f"VGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
-logger.info(f"VGS test score: %0.2f" % list_scores[3])
-logger.info(f"VGS R2 score: %0.2f" % list_scores[4])
+    list_scores = score_my_model(my_df=df_sf_features, my_model=model)
+
+    logger.info('Results from Voting Regressor Randomized Search (VGS):')
+    logger.info(f'VGS best estimator: {model.best_estimator_}')
+    logger.info(f'VGS Validation Score: %0.2f' % model.best_score_)
+    logger.info(f'VGS Best params: {model.best_params_}')
+    logger.info(f'VGS Cross Validation Scores: {list_scores[0]}')
+    logger.info(f"VGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
+    logger.info(f"VGS test score: %0.2f" % list_scores[3])
+    logger.info(f"VGS R2 score: %0.2f" % list_scores[4])
+
+
+if __name__ == '__main__':
+    main()
 
 #######################################################################################################################
 # RDU Data
@@ -214,3 +220,27 @@ logger.info(f"VGS R2 score: %0.2f" % list_scores[4])
 # 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS test score: 0.75
 
 # 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS R2 score: 0.75
+
+#######################################################################################################################
+# Durham direct query vs Durham from s3 - confirmed that these objects are identical 12/29/20
+#######################################################################################################################
+
+# Durham Direct Query
+
+# Validation Score: 0.66
+
+# VGS accuracy on all data: 0.74 (+/- 0.18)
+
+# VGS test score:  0.58
+
+# VGS R2 score:  0.58
+
+# Durham from s3 - with preprocessing
+
+# VGS Validation Score: 0.67
+
+# VGS accuracy on all data:0.74 (+/- 0.18)
+
+# VGS test score: 0.59
+
+# VGS R2 score: 0.59
