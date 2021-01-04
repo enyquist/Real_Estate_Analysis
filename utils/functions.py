@@ -3,15 +3,29 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score
+from sklearn.ensemble import RandomForestRegressor, VotingRegressor
+from sklearn.linear_model import LinearRegression, ElasticNet
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import r2_score
 import logging
 from io import StringIO, BytesIO
 import gzip
 import os
+import multiprocessing
+from catboost import CatBoostRegressor
+import itertools
 
 AWS_ACCESS_KEY_ID = os.environ.get('realEstateUserAWS_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('realEstateUserAWS_Key')
+# CORES = int(multiprocessing.cpu_count() / 2)
+MEAN_TEST_SCORE_THRESHOLD = 0.75
+STD_TEST_SCORE_THRESHOLD = 0.05
 
 
 def create_logger(e_handler_name, t_handler_name):
@@ -115,6 +129,8 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random')
 
         cv.fit(X_train, y_train)
 
+        return cv
+
     if style == 'grid':
         # Create RandomizedSearchCV instance
         cv = GridSearchCV(estimator=my_pipeline,
@@ -128,12 +144,12 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random')
         # Save cv_results to inspect for best model params  # todo check this programmatically
         df = pd.DataFrame.from_dict(cv.cv_results_)
 
-        df.to_csv('01 Misc/grid_search_cv.csv')
+        df.to_csv('output/grid_search_cv.csv', index=False)
 
-    else:  # todo alert user to error
-        return None
+        return cv
 
-    return cv
+    else:  # todo notify user of error
+        return -1
 
 
 def score_my_model(my_df, my_model):
@@ -144,9 +160,9 @@ def score_my_model(my_df, my_model):
     :return:
     """
 
-    X, y, _, X_test, _, y_test = prepare_my_data(my_df)
+    _, _, _, X_test, _, y_test = prepare_my_data(my_df)
 
-    scores = cross_val_score(my_model.best_estimator_, X, y)
+    scores = cross_val_score(my_model.best_estimator_, X_test, y_test)
 
     # Score model
     model_score = my_model.score(X_test, y_test)
@@ -227,9 +243,9 @@ def s3_to_pandas_with_processing(client, bucket, key, header=None):
 
 def create_df_from_s3(bucket):
     """
-
-    :param bucket:
-    :return:
+    Wrapper to collect and append DataFrames from an s3 bucket
+    :param bucket: Name of the s3 bucket
+    :return: Compiled DataFrame from the s3 bucket
     """
     s3 = boto3.client('s3',
                       region_name='us-east-1',
@@ -258,3 +274,97 @@ def create_df_from_s3(bucket):
     df = df.drop_duplicates()
 
     return df
+
+
+def create_best_models(results_path):
+    """
+    Creates the best models from the grid search
+    :param results_path: file path to output from grid search
+    :return: Dictionary containing best models that meet the threshold requirements
+    """
+
+    df = pd.read_csv(results_path)
+
+    # List of model names from searchcv.py, used as dictionary keys
+    list_model_names = ['catboost',
+                        'RandomForest',
+                        'KNeighbors',
+                        'DecisionTree',
+                        'ElasticNet',
+                        'LinearRegression',
+                        'SVR',
+                        'GaussianProcess',
+                        'MLP']
+
+    # Capture models if they meet threshold requirements and store data
+    dict_best_models = {}
+
+    for model in list_model_names:
+        df_models = df[df['param_regressor'].str.contains(model)]
+        df_best_model = df_models.loc[df_models['mean_test_score'].idxmax()]
+        if df_best_model['mean_test_score'] > MEAN_TEST_SCORE_THRESHOLD or \
+                df_best_model['std_test_score'] < STD_TEST_SCORE_THRESHOLD:
+            dict_best_models[model] = df_best_model
+
+    # Dictionary that contains the best params for each model type, used as a Switch-Case statement
+    dict_model_format = {
+        'catboost': CatBoostRegressor(depth=int(dict_best_models['catboost'].param_regressor__depth),
+                                      iterations=int(dict_best_models['catboost'].param_regressor__iterations),
+                                      learning_rate=dict_best_models['catboost'].param_regressor__learning_rate,
+                                      loss_function='RMSE'),
+
+        # RandomForest is default in searchcv.py
+        'RandomForest': RandomForestRegressor(),
+
+        'KNeighbors': KNeighborsRegressor(n_neighbors=int(dict_best_models['KNeighbors'].param_regressor__n_neighbors),
+                                          weights=dict_best_models['KNeighbors'].param_regressor__weights),
+
+        # DecisionTree is default in searchcv.py
+        'DecisionTree': DecisionTreeRegressor(),
+
+        'ElasticNet': ElasticNet(alpha=dict_best_models['ElasticNet'].param_regressor__alpha,
+                                 l1_ratio=dict_best_models['ElasticNet'].param_regressor__l1_ratio),
+
+        # LinearRegression is default in searchcv.py
+        'LinearRegression': LinearRegression(),
+
+        'SVR': SVR(kernel=dict_best_models['SVR'].param_regressor__kernel,
+                   C=dict_best_models['SVR'].param_regressor__C),
+
+        # GaussianProcess only had one type of kernel in searchcv.py
+        'GaussianProcess': GaussianProcessRegressor(kernel=[DotProduct() + WhiteKernel()]),
+
+        # MLP is default in searchcv.py
+        'MLP': MLPRegressor()
+    }
+
+    # Capture best models for output
+    dict_output = {}
+
+    for key in dict_best_models.keys():
+        dict_output[key] = dict_model_format[key]
+
+    return dict_output
+
+
+def create_model_combinations(dict_input):
+    """
+    Creates combinations length 2 to N of an input dictionary dict_input
+    :param dict_input: input dictionary to make combinations from - key is model name, value is model object
+    :return: list of tuples length 2 to N
+    """
+
+    list_model_combinations = []
+
+    for length in range(2, len(dict_input)):
+        list_model_combinations.extend(list(itertools.combinations(dict_input, r=length)))
+
+    list_voting_regressors = []
+
+    for combo in list_model_combinations:
+        list_model_format = []
+        for model in combo:
+            list_model_format.append((f'{model}', dict_input[model]))
+        list_voting_regressors.append(VotingRegressor(list_model_format))
+
+    return list_voting_regressors

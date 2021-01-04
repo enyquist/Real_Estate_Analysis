@@ -1,0 +1,11 @@
+2021-01-01 22:12:06,982:MainProcess:root:INFO:Starting Regressor Training
+2021-01-02 15:44:03,590:MainProcess:root:INFO:Starting Regressor Training
+2021-01-03 15:27:10,287:MainProcess:root:INFO:Starting Regressor Training
+2021-01-04 03:38:10,755:MainProcess:root:INFO:Regressor Training Complete
+2021-01-04 03:38:52,341:MainProcess:root:INFO:Results from Grid Search (GS):
+2021-01-04 03:38:52,342:MainProcess:root:INFO:GS best estimator: Pipeline(steps=[('scaler', QuantileTransformer()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 <catboost.core.CatBoostRegressor object at 0x000001D7F039ADC8>)])
+2021-01-04 03:38:52,342:MainProcess:root:INFO:GS Validation Score: 0.830316710810149
+2021-01-04 03:38:52,342:MainProcess:root:INFO:GS Best params: {'feature_selection': 'passthrough', 'regressor': <catboost.core.CatBoostRegressor object at 0x000001D7EFDFBF48>, 'regressor__depth': 8, 'regressor__iterations': 1500, 'regressor__learning_rate': 0.1, 'regressor__loss_function': 'RMSE', 'scaler': QuantileTransformer()}

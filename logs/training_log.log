@@ -1306,3 +1306,135 @@
 2020-12-31 22:37:45,579:MainProcess:root:INFO:Starting Regressor Training
 2020-12-31 22:43:49,413:MainProcess:root:INFO:Starting Regressor Training
 2020-12-31 22:45:08,001:MainProcess:root:INFO:Starting Regressor Training
+2021-01-01 16:39:43,492:MainProcess:root:INFO:Starting Regressor Training
+2021-01-04 11:41:10,220:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:41:43,361:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:42:26,090:MainProcess:root:INFO:Starting Regressor Training
+2021-01-04 11:42:26,090:MainProcess:root:INFO:Starting Regressor Training
+2021-01-04 11:43:24,651:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:43:24,651:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:43:24,651:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:43:56,809:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 11:54:52,964:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 12:06:27,150:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 12:06:56,389:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 12:15:21,459:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 12:19:25,690:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 12:23:38,579:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 12:27:42,922:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 13:31:03,657:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 13:36:24,618:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 13:41:11,766:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 13:47:05,625:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 13:48:42,200:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 13:50:32,930:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 13:55:40,971:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 13:56:32,157:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 14:00:47,583:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 14:02:17,248:MainProcess:root:INFO:Results from Voting Regressor Search (VRS):
+2021-01-04 14:02:17,257:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', QuantileTransformer()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x000001A7F0CD77C8>),
+                                             ('RandomForest',
+                                              RandomForestRegressor())]))])
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS Best params: {'scaler': QuantileTransformer(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x000001A7F05E14C8>),
+                            ('RandomForest', RandomForestRegressor())]), 'feature_selection': 'passthrough'}
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS Cross Validation Scores: [0.60234832 0.80612766 0.7722815  0.34536966 0.725633  ]
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS Validation Score: 0.82
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS accuracy on all data: 0.65 (+/- 0.33)
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS test score: 0.85
+2021-01-04 14:02:17,259:MainProcess:root:INFO:VRS R2 score: 0.85
+2021-01-04 14:02:39,723:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 14:02:39,723:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 14:20:53,019:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 14:20:53,019:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 14:21:45,184:MainProcess:root:INFO:Results from Voting Regressor Search (VRS):
+2021-01-04 14:21:45,184:MainProcess:root:INFO:Results from Voting Regressor Search (VRS):
+2021-01-04 14:21:45,200:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x000001A7F9512E48>),
+                                             ('RandomForest',
+                                              RandomForestRegressor()),
+                                             ('ElasticNet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0))]))])
+2021-01-04 14:21:45,200:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x000001A7F9512E48>),
+                                             ('RandomForest',
+                                              RandomForestRegressor()),
+                                             ('ElasticNet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0))]))])
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x000001A7F0F65F08>),
+                            ('RandomForest', RandomForestRegressor()),
+                            ('ElasticNet',
+                             ElasticNet(alpha=100.0, l1_ratio=1.0))]), 'feature_selection': 'passthrough'}
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x000001A7F0F65F08>),
+                            ('RandomForest', RandomForestRegressor()),
+                            ('ElasticNet',
+                             ElasticNet(alpha=100.0, l1_ratio=1.0))]), 'feature_selection': 'passthrough'}
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Cross Validation Scores: [   0.53849662    0.79539697    0.74006649 -270.5220462     0.73487989]
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Cross Validation Scores: [   0.53849662    0.79539697    0.74006649 -270.5220462     0.73487989]
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Validation Score: 0.78
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS Validation Score: 0.78
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS accuracy on all data: -53.54 (+/- 216.98)
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS accuracy on all data: -53.54 (+/- 216.98)
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS test score: 0.81
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS test score: 0.81
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS R2 score: 0.81
+2021-01-04 14:21:45,203:MainProcess:root:INFO:VRS R2 score: 0.81
+2021-01-04 14:27:12,876:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 14:59:16,684:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 15:07:08,301:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 15:24:18,339:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 15:24:50,423:MainProcess:root:INFO:Results from Voting Regressor Search (VRS):
+2021-01-04 15:24:50,440:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('catboost',
+                                              <catboost.core.CatBoostRegressor object at 0x000001A37424E1C8>),
+                                             ('RandomForest',
+                                              RandomForestRegressor()),
+                                             ('ElasticNet',
+                                              ElasticNet(alpha=100.0,
+                                                         l1_ratio=1.0))]))])
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Best params: {'scaler': StandardScaler(), 'regressor': VotingRegressor(estimators=[('catboost',
+                             <catboost.core.CatBoostRegressor object at 0x000001A371109EC8>),
+                            ('RandomForest', RandomForestRegressor()),
+                            ('ElasticNet',
+                             ElasticNet(alpha=100.0, l1_ratio=1.0))]), 'feature_selection': 'passthrough'}
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Cross Validation Scores: [0.78661765 0.76608794 0.77319396 0.59188394 0.74933833]
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Validation Score: 0.78
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS accuracy on all data: 0.73 (+/- 0.14)
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS test score: 0.81
+2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS R2 score: 0.81
+2021-01-04 15:32:51,753:MainProcess:root:INFO:Starting Voting Regressor Training
+2021-01-04 15:51:19,365:MainProcess:root:INFO:Voting Regressor Training Complete
+2021-01-04 15:51:21,460:MainProcess:root:INFO:Results from Voting Regressor Search (VRS):
+2021-01-04 15:51:21,476:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', QuantileTransformer()),
+                ('feature_selection', 'passthrough'),
+                ('regressor',
+                 VotingRegressor(estimators=[('RandomForest',
+                                              RandomForestRegressor()),
+                                             ('KNeighbors',
+                                              KNeighborsRegressor(n_neighbors=10,
+                                                                  weights='distance'))]))])
+2021-01-04 15:51:21,479:MainProcess:root:INFO:VRS Best params: {'scaler': QuantileTransformer(), 'regressor': VotingRegressor(estimators=[('RandomForest', RandomForestRegressor()),
+                            ('KNeighbors',
+                             KNeighborsRegressor(n_neighbors=10,
+                                                 weights='distance'))]), 'feature_selection': 'passthrough'}
+2021-01-04 15:51:21,479:MainProcess:root:INFO:VRS Cross Validation Scores: [0.75669027 0.73174816 0.74249208 0.54884723 0.74448228]
+2021-01-04 15:51:21,479:MainProcess:root:INFO:VRS Validation Score: 0.75
+2021-01-04 15:51:21,479:MainProcess:root:INFO:VRS accuracy on all data: 0.70 (+/- 0.16)
+2021-01-04 15:51:21,480:MainProcess:root:INFO:VRS test score: 0.79
+2021-01-04 15:51:21,480:MainProcess:root:INFO:VRS R2 score: 0.79

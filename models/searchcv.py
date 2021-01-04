@@ -39,8 +39,7 @@ def main():
         {  # CatBoostRegressor
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(CatBoostRegressor()),
-                                  RFECV(CatBoostRegressor(), step=0.2)],
+                                  SelectFromModel(CatBoostRegressor())],
             'regressor': [CatBoostRegressor()],
             'regressor__depth': [4, 6, 8, 10],
             'regressor__learning_rate': [0.01, 0.05, 0.1],
@@ -56,8 +55,7 @@ def main():
         {  # SVR with Feature Selection
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(SVR(kernel='linear')),
-                                  RFECV(SVR(kernel='linear'), step=0.2)],
+                                  SelectFromModel(SVR(kernel='linear'))],
             'regressor': [SVR()],
             'regressor__kernel': ['linear'],
             'regressor__C': np.linspace(start=1, stop=100, num=5)
@@ -72,8 +70,7 @@ def main():
         {  # ElasticNet
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(ElasticNet()),
-                                  RFECV(ElasticNet(), step=0.2)],
+                                  SelectFromModel(ElasticNet())],
             'regressor': [ElasticNet()],
             'regressor__alpha': np.linspace(start=1, stop=100, num=5),
             'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
@@ -81,8 +78,7 @@ def main():
         {  # DecisionTreeRegressor
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(DecisionTreeRegressor()),
-                                  RFECV(DecisionTreeRegressor(), step=0.2)],
+                                  SelectFromModel(DecisionTreeRegressor())],
             'regressor': [DecisionTreeRegressor()]
         },
         {  # KNeighborsRegressor
@@ -95,8 +91,7 @@ def main():
         {  # RandomForestRegressor
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(RandomForestRegressor()),
-                                  RFECV(RandomForestRegressor(), step=0.2)],
+                                  SelectFromModel(RandomForestRegressor())],
             'regressor': [RandomForestRegressor()]
         },
         {  # MLPRegressor
@@ -107,8 +102,7 @@ def main():
         {  # LinearRegression
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
-                                  SelectFromModel(LinearRegression()),
-                                  RFECV(LinearRegression(), step=0.2)],
+                                  SelectFromModel(LinearRegression())],
             'regressor': [LinearRegression()]
         }
     ]
@@ -144,20 +138,20 @@ def main():
 
     logger.info('Starting Regressor Training')
 
-    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
+    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid, style='grid')
 
     logger.info('Regressor Training Complete')
 
     list_scores = score_my_model(my_df=df_sf_features, my_model=model)
 
-    logger.info('Results from Randomized Grid Search (RGS):')
-    logger.info(f'RGS best estimator: {model.best_estimator_}')
-    logger.info(f'RGS Validation Score: {model.best_score_}')
-    logger.info(f'RGS Best params: {model.best_params_}')
-    logger.info(f'RGS Cross Validation Scores: {list_scores[0]}')
-    logger.info(f"RGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
-    logger.info(f"RGS test score: %0.2f" % list_scores[3])
-    logger.info(f"RGS R2 score: %0.2f" % list_scores[4])
+    logger.info('Results from Search:')
+    logger.info(f'Search best estimator: {model.best_estimator_}')
+    logger.info(f'Search Best params: {model.best_params_}')
+    logger.info(f"Search Cross Validation Scores: {list_scores[0]}")
+    logger.info(f"Search Validation Score: %0.2f" % model.best_score_)
+    logger.info(f"Search accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
+    logger.info(f"Search test score: %0.2f" % list_scores[3])
+    logger.info(f"Search R2 score: %0.2f" % list_scores[4])
 
 
 if __name__ == '__main__':
@@ -165,7 +159,7 @@ if __name__ == '__main__':
 
 # RANDOMIZEDSEARCHCV OUTPUT
 
-# 2020-12-23 14:02:05,060:MainProcess:root:INFO:Results from Randomized Grid Search (RGS):
+# 2020-12-23 14:02:05,060:MainProcess:root:INFO:Results from Randomized Grid Search (Search):
 
 # 2020-12-23 14:02:05,063:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
 #                 ('feature_selection',

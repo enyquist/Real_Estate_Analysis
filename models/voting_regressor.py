@@ -1,12 +1,9 @@
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
-from sklearn.linear_model import LinearRegression, ElasticNet
-from sklearn.ensemble import RandomForestRegressor, VotingRegressor
 from sklearn.feature_selection import SelectFromModel
-from sklearn.neighbors import KNeighborsRegressor
-from catboost import CatBoostRegressor
 
-from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
+from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3, create_best_models,\
+    create_model_combinations
 
 
 def main():
@@ -22,29 +19,25 @@ def main():
 
     bucket = 're-raw-data'
 
-    best_catboost = CatBoostRegressor(depth=8,  # Todo create these programmatically
-                                      iterations=1500,
-                                      learning_rate=0.05,
-                                      loss_function='RMSE')
+    # Read GridSearchCV csv results and create a dictionary with the best models
+    dict_best_models = create_best_models('models/output/grid_search_cv.csv')
 
-    # Define Pipeline
+    # Create VotingRegressors made up of the best models from 2 to N estimators
+    list_voting_regressors = create_model_combinations(dict_best_models)
+
+    # Define Pipeline - default to catboost because it was the highest performing model
     regression_pipe = Pipeline([
         ('scaler', StandardScaler()),
-        ('feature_selection', SelectFromModel(best_catboost)),
-        ('regressor', CatBoostRegressor())
+        ('feature_selection', SelectFromModel(dict_best_models['catboost'])),
+        ('regressor', dict_best_models['catboost'])
     ])
 
     param_grid = [
         {  # VotingRegressor
             'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough', SelectFromModel(best_catboost)],
-            'regressor': [VotingRegressor([
-                ('catboost', best_catboost),
-                ('randforest', RandomForestRegressor()),
-                ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
-                ('lr', LinearRegression()),
-                ('kn', KNeighborsRegressor(weights='distance', n_neighbors=5))
-            ])],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(dict_best_models['catboost'])],
+            'regressor': list_voting_regressors
         }
     ]
 
@@ -79,20 +72,20 @@ def main():
 
     logger.info('Starting Voting Regressor Training')
 
-    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid)
+    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid, style='random')
 
     logger.info('Voting Regressor Training Complete')
 
     list_scores = score_my_model(my_df=df_sf_features, my_model=model)
 
-    logger.info('Results from Voting Regressor Randomized Search (VGS):')
-    logger.info(f'VGS best estimator: {model.best_estimator_}')
-    logger.info(f'VGS Validation Score: %0.2f' % model.best_score_)
-    logger.info(f'VGS Best params: {model.best_params_}')
-    logger.info(f'VGS Cross Validation Scores: {list_scores[0]}')
-    logger.info(f"VGS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
-    logger.info(f"VGS test score: %0.2f" % list_scores[3])
-    logger.info(f"VGS R2 score: %0.2f" % list_scores[4])
+    logger.info('Results from Voting Regressor Search (VRS):')
+    logger.info(f'VRS best estimator: {model.best_estimator_}')
+    logger.info(f'VRS Best params: {model.best_params_}')
+    logger.info(f"VRS Cross Validation Scores: {list_scores[0]}")
+    logger.info(f'VRS Validation Score: %0.2f' % model.best_score_)
+    logger.info(f"VRS accuracy on all data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
+    logger.info(f"VRS test score: %0.2f" % list_scores[3])
+    logger.info(f"VRS R2 score: %0.2f" % list_scores[4])
 
 
 if __name__ == '__main__':
@@ -181,45 +174,41 @@ if __name__ == '__main__':
 # 2020-12-23 14:53:41,380:MainProcess:root:INFO:VGS test score: 0.67
 
 #######################################################################################################################
-# s3 Data - Durham, Raleigh, Greensboro, Fayetteville, Charlotte
+# s3 Data - Durham, Raleigh, Greensboro, Fayetteville, Charlotte, Maple Grove, Minneapolis, New Hope, Plymouth
 #######################################################################################################################
 
-# 2020-12-27 13:59:55,668:MainProcess:root:INFO:Results from Voting Regressor Randomized Search (VGS):
+# 2020-12-27 13:59:55,668:MainProcess:root:INFO:Results from Voting Regressor Search (VGS):
 
-# 2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
+# 2021-01-04 15:24:50,440:MainProcess:root:INFO:VRS best estimator: Pipeline(steps=[('scaler', StandardScaler()),
 #                 ('feature_selection', 'passthrough'),
 #                 ('regressor',
 #                  VotingRegressor(estimators=[('catboost',
-#                                               <catboost.core.CatBoostRegressor object at 0x0000020274D79288>),
-#                                              ('randforest',
+#                                               <catboost.core.CatBoostRegressor object at 0x000001A37424E1C8>),
+#                                              ('RandomForest',
 #                                               RandomForestRegressor()),
-#                                              ('enet',
+#                                              ('ElasticNet',
 #                                               ElasticNet(alpha=100.0,
-#                                                          l1_ratio=1.0)),
-#                                              ('lr', LinearRegression()),
-#                                              ('kn',
-#                                               KNeighborsRegressor(weights='distance'))]))])
+#                                                          l1_ratio=1.0))]))])
 
-# 2020-12-27 13:59:55,691:MainProcess:root:INFO:VGS Validation Score: 0.75
-
-# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Best params:
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Best params:
 # {'scaler': StandardScaler(),
 # 'regressor': VotingRegressor(estimators=[('catboost',
-#                              <catboost.core.CatBoostRegressor object at 0x00000202730BD548>),
-#                             ('randforest', RandomForestRegressor()),
-#                             ('enet', ElasticNet(alpha=100.0, l1_ratio=1.0)),
-#                             ('lr', LinearRegression()),
-#                             ('kn', KNeighborsRegressor(weights='distance'))]),
-#                             'feature_selection': 'passthrough'}
+#                              <catboost.core.CatBoostRegressor object at 0x000001A371109EC8>),
+#                             ('RandomForest', RandomForestRegressor()),
+#                             ('ElasticNet',
+#                              ElasticNet(alpha=100.0, l1_ratio=1.0))]),
+# 'feature_selection': 'passthrough'}
 
-# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS Cross Validation Scores:
-# [   0.74659476    0.70264914 -182.24063743    0.29708606    0.7109509 ]
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Cross Validation Scores:
+# [0.78661765 0.76608794 0.77319396 0.59188394 0.74933833]
 
-# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS accuracy on all data: -35.96 (+/- 146.28)
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS Validation Score: 0.78
 
-# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS test score: 0.75
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS accuracy on all data: 0.73 (+/- 0.14)
 
-# 2020-12-27 13:59:55,695:MainProcess:root:INFO:VGS R2 score: 0.75
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS test score: 0.81
+
+# 2021-01-04 15:24:50,443:MainProcess:root:INFO:VRS R2 score: 0.81
 
 #######################################################################################################################
 # Durham direct query vs Durham from s3 - confirmed that these objects are identical 12/29/20
