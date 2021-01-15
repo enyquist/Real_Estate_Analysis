@@ -1,5 +1,5 @@
 # Real_Estate_Analysis
-The aim of this project is to train a regression model to accurately predict the sale price of a house within $1,000 USD.
+The aim of this project is to train a regression model to accurately predict the sale price of a house in USD
 
 # Motivation
 The motivation behind this project is to learn how to design and maintain machine learning models at scale, using industry standard practices and techniques.
@@ -8,7 +8,7 @@ The motivation behind this project is to learn how to design and maintain machin
 Under construction
 
 # Code Style
-Under construction
+PEP 8
 
 # Screenshots
 Under construction
