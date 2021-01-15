@@ -2,3 +2,4 @@
 real_estate_analysis/create_config.py
 real_estate_analysis/config.ini
 /real_estate_analysis/logs/
+/data/models/output/
