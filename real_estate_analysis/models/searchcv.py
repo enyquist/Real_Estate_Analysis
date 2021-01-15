@@ -12,7 +12,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from catboost import CatBoostRegressor
 
-from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3
+import real_estate_analysis.utils.functions as func
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     # Config Log File
     ####################################################################################################################
 
-    logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
+    logger = func.create_logger(e_handler_name='../logs/error_log.log', t_handler_name='../logs/training_log.log')
 
     ####################################################################################################################
     # Define Pipeline and variables
@@ -112,9 +112,9 @@ def main():
     ####################################################################################################################
 
     # Retrieve data from s3 and format into dataframe
-    df = create_df_from_s3(bucket=bucket)
+    df = func.create_df_from_s3(bucket=bucket)
 
-    # Parse into unique DataFrame for each type of real estate
+    # Parse DataFrame for single family real estate
     df_sf = df[df['description.type'] == 'single_family']
 
     # ID features
@@ -138,11 +138,14 @@ def main():
 
     logger.info('Starting Regressor Training')
 
-    model = train_my_model(my_df=df_sf_features, my_pipeline=regression_pipe, my_param_grid=param_grid, style='grid')
+    model = func.train_my_model(my_df=df_sf_features,
+                                my_pipeline=regression_pipe,
+                                my_param_grid=param_grid,
+                                style='grid')
 
     logger.info('Regressor Training Complete')
 
-    list_scores = score_my_model(my_df=df_sf_features, my_model=model)
+    list_scores = func.score_my_model(my_df=df_sf_features, my_model=model)
 
     logger.info('Results from Search:')
     logger.info(f'Search best estimator: {model.best_estimator_}')

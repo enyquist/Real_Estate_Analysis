@@ -1,1 +1,4 @@
 /real_estate_analysis/models/catboost_info/
+real_estate_analysis/create_config.py
+real_estate_analysis/config.ini
+/real_estate_analysis/logs/

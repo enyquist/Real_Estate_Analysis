@@ -2,26 +2,30 @@ import os
 import pandas as pd
 import boto3
 import datetime
+import configparser
 
-from utils.RealEstateData import RealEstateData
-from utils.functions import pandas_to_s3, create_logger
+from real_estate_analysis.utils.RealEstateData import RealEstateData
+from real_estate_analysis.utils import functions as func
 
-AWS_ACCESS_KEY_ID = os.environ.get('realEstateUserAWS_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('realEstateUserAWS_Key')
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+LOG_FILEPATH = '../../data/AWS/city_log.csv'
 
 
 def main():
     # Generate the boto3 client for interacting with S3
     s3 = boto3.client('s3',
                       region_name='us-east-1',
-                      aws_access_key_id=AWS_ACCESS_KEY_ID,
-                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
+                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
 
     # Create AWS Logger
-    logger = create_logger(e_handler_name='logs/AWS_e_log.log', t_handler_name='logs/AWS_log.log')
+    logger = func.create_logger(e_handler_name='../logs/AWS_e_log.log',
+                                t_handler_name='../logs/AWS_log.log')
 
     # Load CSV
-    df_city_log = pd.read_csv('AWS/resources/city_log.csv')
+    df_city_log = pd.read_csv(LOG_FILEPATH)
 
     # Format dates as datetime
     df_city_log['last_modified'] = pd.to_datetime(df_city_log['last_modified'])
@@ -40,7 +44,7 @@ def main():
 
             # Stream to s3
             try:
-                response = pandas_to_s3(df=df_data, client=s3, bucket='re-raw-data', key=str_filename)
+                response = func.pandas_to_s3(df=df_data, client=s3, bucket='re-raw-data', key=str_filename)
 
                 if response['ResponseMetadata']['HTTPStatusCode'] == 200:
                     logger.info(f'{str_filename} successfully uploaded')
@@ -51,7 +55,7 @@ def main():
                 logger.error(f'{str_filename} resulted in error: {e}')
 
     # Save df_city_log
-    df_city_log.to_csv('AWS/resources/city_log.csv', index=False)
+    df_city_log.to_csv(LOG_FILEPATH, index=False)
 
 
 if __name__ == '__main__':

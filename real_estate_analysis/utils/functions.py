@@ -15,14 +15,12 @@ from sklearn.metrics import r2_score
 import logging
 from io import StringIO, BytesIO
 import gzip
-import os
 from catboost import CatBoostRegressor
 import itertools
+import configparser
 
-AWS_ACCESS_KEY_ID = os.environ.get('realEstateUserAWS_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('realEstateUserAWS_Key')
-MEAN_TEST_SCORE_THRESHOLD = 0.75
-STD_TEST_SCORE_THRESHOLD = 0.05
+config = configparser.ConfigParser()
+config.read('../config.ini')
 
 
 def create_logger(e_handler_name, t_handler_name):
@@ -102,7 +100,7 @@ def prepare_my_data(my_df):
     return X, y, X_train, X_test, y_train, y_test
 
 
-def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random', filename='grid_search_cv'):
+def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random', filename='searchcv'):
     """
     Wrapper for training a regression model to predict housing prices
     :param my_df: DataFrame of features
@@ -143,10 +141,9 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random',
         df = pd.DataFrame.from_dict(cv.cv_results_)
 
         try:
-            df.to_csv(f'output/{filename}.csv', index=False)
+            df.to_csv(f'../../data/models/output/{filename}.csv', index=False)
         except FileNotFoundError as e:
-            logger.error(f"{e} occured, trying to save with full filepath")
-            df.to_csv(f'models/output/{filename}.csv', index=False)
+            pass
 
         return cv
 
@@ -251,8 +248,8 @@ def create_df_from_s3(bucket):
     """
     s3 = boto3.client('s3',
                       region_name='us-east-1',
-                      aws_access_key_id=AWS_ACCESS_KEY_ID,
-                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
+                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
 
     # Get response from s3 with data on date PREFIX from bucket re-raw-data
     response = s3.list_objects(Bucket=bucket)
@@ -304,8 +301,8 @@ def create_best_models(results_path):
     for model in list_model_names:
         df_models = df[df['param_regressor'].str.contains(model)]
         df_best_model = df_models.loc[df_models['mean_test_score'].idxmax()]
-        if df_best_model['mean_test_score'] > MEAN_TEST_SCORE_THRESHOLD or \
-                df_best_model['std_test_score'] < STD_TEST_SCORE_THRESHOLD:
+        if df_best_model['mean_test_score'] > config['DEFAULT']['mean_test_score_threshold'] or \
+                df_best_model['std_test_score'] < config['DEFAULT']['std_test_score_threshold']:
             dict_best_models[model] = df_best_model
 
     # Dictionary that contains the best params for each model type, used as a Switch-Case statement

@@ -1,21 +1,22 @@
-import os
 import boto3
+import configparser
 
-from utils.functions import create_logger
+import real_estate_analysis.utils.functions as func
 
-AWS_ACCESS_KEY_ID = os.environ.get('realEstateUserAWS_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('realEstateUserAWS_Key')
+config = configparser.ConfigParser()
+config.read('../config.ini')
 
 
 def main():
     # Generate the boto3 client for interacting with S3
     s3 = boto3.client('s3',
                       region_name='us-east-1',
-                      aws_access_key_id=AWS_ACCESS_KEY_ID,
-                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
+                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
 
     # Create AWS Logger
-    logger = create_logger(e_handler_name='logs/AWS_e_log.log', t_handler_name='logs/AWS_log.log')
+    logger = func.create_logger(e_handler_name='../logs/AWS_e_log.log',
+                                t_handler_name='../logs/AWS_log.log')
 
     list_bucket_names = ['re-raw-data', 're-formatted-data']
 

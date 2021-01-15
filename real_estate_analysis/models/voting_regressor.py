@@ -2,8 +2,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
 from sklearn.feature_selection import SelectFromModel
 
-from utils.functions import train_my_model, score_my_model, create_logger, create_df_from_s3, create_best_models,\
-    create_model_combinations
+import real_estate_analysis.utils.functions as func
 
 
 def main():
@@ -11,7 +10,7 @@ def main():
     # Config Log File
     ####################################################################################################################
 
-    logger = create_logger(e_handler_name='logs/error_log.log', t_handler_name='logs/training_log.log')
+    logger = func.create_logger(e_handler_name='../logs/error_log.log', t_handler_name='../logs/training_log.log')
 
     ####################################################################################################################
     # Define Pipeline and variables
@@ -20,10 +19,10 @@ def main():
     bucket = 're-raw-data'
 
     # Read GridSearchCV csv results and create a dictionary with the best models
-    dict_best_models = create_best_models('output/grid_search_cv.csv')
+    dict_best_models = func.create_best_models('../../data/models/output/searchcv.csv')
 
     # Create VotingRegressors made up of the best models from 2 to N estimators
-    list_voting_regressors = create_model_combinations(dict_best_models)
+    list_voting_regressors = func.create_model_combinations(dict_best_models)
 
     # Define Pipeline - default to catboost because it was the highest performing model
     regression_pipe = Pipeline([
@@ -46,7 +45,7 @@ def main():
     ####################################################################################################################
 
     # Retrieve data from s3 and format into dataframe
-    df = create_df_from_s3(bucket=bucket)
+    df = func.create_df_from_s3(bucket=bucket)
 
     # Parse into unique DataFrame for each type of real estate
     df_sf = df[df['description.type'] == 'single_family']
@@ -72,12 +71,12 @@ def main():
 
     logger.info('Starting Voting Regressor Training')
 
-    model = train_my_model(my_df=df_features, my_pipeline=regression_pipe, my_param_grid=param_grid, style='grid',
-                           filename='voting_regressor')
+    model = func.train_my_model(my_df=df_features, my_pipeline=regression_pipe, my_param_grid=param_grid, style='grid',
+                                filename='voting_regressor')
 
     logger.info('Voting Regressor Training Complete')
 
-    list_scores = score_my_model(my_df=df_features, my_model=model)
+    list_scores = func.score_my_model(my_df=df_features, my_model=model)
 
     logger.info('Results from Voting Regressor Search (VRS):')
     logger.info(f'VRS best estimator: {model.best_estimator_}')
