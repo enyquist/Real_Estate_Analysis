@@ -251,7 +251,7 @@ def create_df_from_s3(bucket):
                       aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
                       aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
 
-    # Get response from s3 with data on date PREFIX from bucket re-raw-data
+    # Get response from s3 with data from bucket re-raw-data
     response = s3.list_objects(Bucket=bucket)
 
     # Lists
@@ -301,8 +301,8 @@ def create_best_models(results_path):
     for model in list_model_names:
         df_models = df[df['param_regressor'].str.contains(model)]
         df_best_model = df_models.loc[df_models['mean_test_score'].idxmax()]
-        if df_best_model['mean_test_score'] > config['DEFAULT']['mean_test_score_threshold'] or \
-                df_best_model['std_test_score'] < config['DEFAULT']['std_test_score_threshold']:
+        if df_best_model['mean_test_score'] > float(config['DEFAULT']['mean_test_score_threshold']) or \
+                df_best_model['std_test_score'] < float(config['DEFAULT']['std_test_score_threshold']):
             dict_best_models[model] = df_best_model
 
     # Dictionary that contains the best params for each model type, used as a Switch-Case statement

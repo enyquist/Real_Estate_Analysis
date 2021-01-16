@@ -160,68 +160,34 @@ def main():
 if __name__ == '__main__':
     main()
 
-# RANDOMIZEDSEARCHCV OUTPUT
-
-# 2020-12-23 14:02:05,060:MainProcess:root:INFO:Results from Randomized Grid Search (Search):
-
-# 2020-12-23 14:02:05,063:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
-#                 ('feature_selection',
-#                  RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000020873F919C8>,
-#                        step=0.2)),
-#                 ('regressor',
-#                  <catboost.core.CatBoostRegressor object at 0x000002087505D448>)])
-
-# 2020-12-23 14:02:05,063:MainProcess:root:INFO:RGS Validation Score: 0.6797365755730966
-
-# 2020-12-23 14:02:05,064:MainProcess:root:INFO:
-# RGS Best params: {'scaler': RobustScaler(),
-# 'regressor__loss_function': 'RMSE',
-# 'regressor__learning_rate': 0.05,
-# 'regressor__iterations': 1000,
-# 'regressor__depth': 6,
-# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000020873F51208>,
-# 'feature_selection': RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000020873F51408>,
-#       step=0.2)}
-
-# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS Cross Validation Scores:
-# [0.74567611 0.82943665 0.74755348 0.53558083 0.78026391]
-
-# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS accuracy on all data: 0.73 (+/- 0.20)
-
-# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS test score: 0.66
-
-# 2020-12-23 14:02:05,064:MainProcess:root:INFO:RGS R2 score: 0.66
 
 #######################################################################################################################
-# s3 Data - Durham, Raleigh, Greensboro, Fayetteville, Charlotte
+# s3 Data
 #######################################################################################################################
 
-# 2020-12-27 13:40:05,885:MainProcess:root:INFO:Results from Randomized Grid Search (RGS):
+# 2021-01-15 19:00:11,316:MainProcess:root:INFO:Results from Search:
 
-# 2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS best estimator: Pipeline(steps=[('scaler', RobustScaler()),
-#                 ('feature_selection',
-#                  RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F76C2B548>,
-#                        step=0.2)),
-#                 ('regressor',
-#                  <catboost.core.CatBoostRegressor object at 0x0000028F76C2B448>)])
+# 2021-01-15 19:00:11,317:MainProcess:root:INFO:Search best estimator:
+# Pipeline(steps=[('scaler', QuantileTransformer()),
+#                 ('feature_selection', 'passthrough'),
+#                 ('regressor', <catboost.core.CatBoostRegressor object at 0x0000024FFA3F1B88>)])
 
-# 2020-12-27 13:40:05,888:MainProcess:root:INFO:RGS Validation Score: 0.8491577972346784
-
-# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Best params:
-# {'scaler': RobustScaler(),
-# 'regressor__loss_function': 'RMSE',
-# 'regressor__learning_rate': 0.05,
-# 'regressor__iterations': 1500,
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Best params:
+# {'feature_selection': 'passthrough',
+# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000024FF4670FC8>,
 # 'regressor__depth': 8,
-# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000028F74F2D448>,
-# 'feature_selection': RFECV(estimator=<catboost.core.CatBoostRegressor object at 0x0000028F7674D048>,
-#       step=0.2)}
+# 'regressor__iterations': 1500,
+# 'regressor__learning_rate': 0.1,
+# 'regressor__loss_function': 'RMSE',
+# 'scaler': QuantileTransformer()}
 
-# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS Cross Validation Scores:
-# [ 0.81946377  0.74768273  0.70388037 -0.10789635  0.62905247]
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Cross Validation Scores:
+# [0.86032536 0.78482347 0.76833826 0.71513614 0.72422007]
 
-# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS accuracy on all data: 0.56 (+/- 0.68)
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Validation Score: 0.78
 
-# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS test score: 0.86
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search accuracy on test data: 0.77 (+/- 0.10)
 
-# 2020-12-27 13:40:05,889:MainProcess:root:INFO:RGS R2 score: 0.86
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search test score: 0.83
+
+# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search R2 score: 0.83

@@ -1,12 +1,11 @@
 import json
-import os
 import pandas as pd
 import requests
 import math
+import configparser
 
-RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY')
-RAPIDAPI_HOST_RE = os.environ.get('RAPIDAPI_HOST_RE')
-RAPIDAPI_OFFSET = 200
+config = configparser.ConfigParser()
+config.read('../config.ini')
 
 
 class RealEstateData:
@@ -59,8 +58,8 @@ class RealEstateData:
                            "sort": "newest"}
 
             headers = {
-                'x-rapidapi-key': RAPIDAPI_KEY,
-                'x-rapidapi-host': RAPIDAPI_HOST_RE
+                'x-rapidapi-key': config['DEFAULT']['rapidapi_key'],
+                'x-rapidapi-host': config['DEFAULT']['rapidapi_host_re']
             }
 
             response = requests.request("GET", url, headers=headers, params=querystring)
@@ -86,8 +85,8 @@ class RealEstateData:
                        "sort": "newest"}
 
         headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': RAPIDAPI_HOST_RE
+            'x-rapidapi-key': config['DEFAULT']['rapidapi_key'],
+            'x-rapidapi-host': config['DEFAULT']['rapidapi_host_re']
         }
 
         response = requests.request("GET", url, headers=headers, params=querystring)
@@ -115,7 +114,7 @@ class RealEstateData:
         #     pass
 
     @staticmethod
-    def define_chunks(total, chunk=RAPIDAPI_OFFSET):
+    def define_chunks(total, chunk=int(config['DEFAULT']['rapidapi_offset'])):
         """
         Function to define the offset to collect total number of listings in CITY, STATE from Realtor.com via Rapid API
         :param total: Total number of listings
