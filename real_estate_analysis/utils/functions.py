@@ -11,7 +11,8 @@ from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import r2_score
+from skopt import BayesSearchCV
+from skopt.callbacks import DeltaXStopper
 import logging
 from io import StringIO, BytesIO
 import gzip
@@ -70,14 +71,13 @@ def prepare_my_data(my_df):
     # Imputer Instance
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
 
-    # Drop Duplicates
-    my_df = my_df.drop_duplicates()
-
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
     my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
 
-    # Drop entries that have no list_price
-    my_df = my_df[my_df['list_price'].notna()]
+    # Drop entries that have no list_price or lat / long
+    my_df = my_df.dropna(axis=0, subset=['list_price',
+                                         'location.address.coordinate.lon',
+                                         'location.address.coordinate.lat'])
 
     # split into features and targets elements
     X, y = my_df.drop('list_price', axis=1).values, my_df['list_price'].values
@@ -97,22 +97,21 @@ def prepare_my_data(my_df):
                                                         test_size=0.2,
                                                         random_state=42)
 
-    return X, y, X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test
 
 
-def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random', filename='searchcv'):
+def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, style='random', filename='searchcv'):
     """
     Wrapper for training a regression model to predict housing prices
-    :param my_df: DataFrame of features
     :param my_pipeline: Training Pipeline, an instance of sklearn's Pipeline
     :param my_param_grid: Dictionary containing the parameters to train over
+    :param x_train: Feature training set
+    :param y_train: Target training set
     :param search: Number of iterations to search in RandomizedSearchCV, default 50
     :param style: Search style, default to RandomizedSearchCV
     :param filename: filename to save off files
     :return: RandomizedSearchCV object
     """
-
-    _, _, X_train, _, y_train, _ = prepare_my_data(my_df)
 
     if style == 'random':
         # Create RandomizedSearchCV instance
@@ -121,9 +120,9 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random',
                                 n_iter=search,
                                 cv=5,
                                 n_jobs=-1,
-                                verbose=10)
+                                verbose=3)
 
-        cv.fit(X_train, y_train)
+        cv.fit(x_train, y_train)
 
         return cv
 
@@ -133,9 +132,9 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random',
                           param_grid=my_param_grid,
                           cv=5,
                           n_jobs=-1,
-                          verbose=10)
+                          verbose=3)
 
-        cv.fit(X_train, y_train)
+        cv.fit(x_train, y_train)
 
         # Save cv_results to inspect for best model params
         df = pd.DataFrame.from_dict(cv.cv_results_)
@@ -147,31 +146,37 @@ def train_my_model(my_df, my_pipeline, my_param_grid, search=50, style='random',
 
         return cv
 
+    if style == 'bayes':
+
+        cv = BayesSearchCV(estimator=my_pipeline,
+                           search_spaces=my_param_grid,
+                           n_iter=search,
+                           n_jobs=16,
+                           cv=5)
+
+        cv.fit(x_train, y_train, callback=DeltaXStopper(0.01))
+
+        return cv
+
     else:  # todo notify user of error
         return -1
 
 
-def score_my_model(my_df, my_model):
+def score_my_model(my_model, x_test, y_test):
     """
     Wrapper to score a model
-    :param my_df: DataFrame of features
+    :param x_test: Features test set
+    :param y_test: Target test set
     :param my_model: an instance of an sklearn RandomizedSearchCV model. Must have a .best_estimator_ method implemented
     :return:
     """
 
-    _, _, _, X_test, _, y_test = prepare_my_data(my_df)
-
-    scores = cross_val_score(my_model.best_estimator_, X_test, y_test)
+    scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
 
     # Score model
-    model_score = my_model.score(X_test, y_test)
+    model_score = my_model.score(x_test, y_test)
 
-    # Predict and Test on test data
-    y_pred = my_model.predict(X_test)
-
-    r2 = r2_score(y_test, y_pred)
-
-    return [scores, scores.mean(), scores.std() * 2, model_score, r2]
+    return [scores, scores.mean(), scores.std() * 2, model_score]
 
 
 def pandas_to_s3(df, client, bucket, key):

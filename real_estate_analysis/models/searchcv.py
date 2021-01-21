@@ -3,7 +3,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
-from sklearn.feature_selection import SelectFromModel, RFECV
+from sklearn.feature_selection import SelectFromModel
 from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
@@ -136,16 +136,20 @@ def main():
 
     df_sf_features = df_sf[list_features]
 
+    # Prepare and split data
+    X_train, X_test, y_train, y_test = func.prepare_my_data(my_df=df_sf_features)
+
     logger.info('Starting Regressor Training')
 
-    model = func.train_my_model(my_df=df_sf_features,
-                                my_pipeline=regression_pipe,
+    model = func.train_my_model(my_pipeline=regression_pipe,
                                 my_param_grid=param_grid,
+                                x_train=X_train,
+                                y_train=y_train,
                                 style='grid')
 
     logger.info('Regressor Training Complete')
 
-    list_scores = func.score_my_model(my_df=df_sf_features, my_model=model)
+    list_scores = func.score_my_model(my_model=model, x_test=X_test, y_test=y_test)
 
     logger.info('Results from Search:')
     logger.info(f'Search best estimator: {model.best_estimator_}')
@@ -154,7 +158,6 @@ def main():
     logger.info(f"Search Validation Score: %0.2f" % model.best_score_)
     logger.info(f"Search accuracy on test data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
     logger.info(f"Search test score: %0.2f" % list_scores[3])
-    logger.info(f"Search R2 score: %0.2f" % list_scores[4])
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import boto3
 import datetime
@@ -8,7 +7,7 @@ from real_estate_analysis.utils.RealEstateData import RealEstateData
 from real_estate_analysis.utils import functions as func
 
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read('../config.ini')
 
 LOG_FILEPATH = '../../data/AWS/city_log.csv'
 
@@ -34,7 +33,7 @@ def main():
     today = datetime.datetime.now()
 
     for idx, row in df_city_log.iterrows():
-        if row['last_modified'] < today - datetime.timedelta(30):
+        if row['last_modified'] < today - datetime.timedelta(365):  # todo set to 30, pending funding
 
             # Collect Data and log that it was captured
             city = row['city']
@@ -56,6 +55,8 @@ def main():
 
     # Save df_city_log
     df_city_log.to_csv(LOG_FILEPATH, index=False)
+
+    logger.info(f'Data collection complete')
 
 
 if __name__ == '__main__':

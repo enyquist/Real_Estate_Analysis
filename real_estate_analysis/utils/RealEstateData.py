@@ -96,7 +96,7 @@ class RealEstateData:
             housing_total = json_content['data']['total']
             return housing_total, json_content
 
-        # try:
+        # try:  todo fix error catching
         #     response = requests.request("GET", url, headers=headers, params=querystring)
         #
         # except requests.exceptions.RequestException as e:
