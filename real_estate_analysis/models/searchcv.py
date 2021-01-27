@@ -23,93 +23,10 @@ def main():
     logger = func.create_logger(e_handler_name='../logs/error_log.log', t_handler_name='../logs/training_log.log')
 
     ####################################################################################################################
-    # Define Pipeline and variables
+    # Data
     ####################################################################################################################
 
     bucket = 're-raw-data'
-
-    # Define Pipeline
-    regression_pipe = Pipeline([
-        ('scaler', StandardScaler()),
-        ('feature_selection', SelectFromModel(CatBoostRegressor)),
-        ('regressor', CatBoostRegressor())
-    ])
-
-    param_grid = [
-        {  # CatBoostRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(CatBoostRegressor())],
-            'regressor': [CatBoostRegressor()],
-            'regressor__depth': [4, 6, 8, 10],
-            'regressor__learning_rate': [0.01, 0.05, 0.1],
-            'regressor__iterations': [500, 1000, 1500],
-            'regressor__loss_function': ['RMSE']
-        },
-        {  # GaussianProcessRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough'],
-            'regressor': [GaussianProcessRegressor()],
-            'regressor__kernel': [DotProduct() + WhiteKernel()]
-        },
-        {  # SVR with Feature Selection
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(SVR(kernel='linear'))],
-            'regressor': [SVR()],
-            'regressor__kernel': ['linear'],
-            'regressor__C': np.linspace(start=1, stop=100, num=5)
-        },
-        {  # SVR
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough'],
-            'regressor': [SVR()],
-            'regressor__kernel': ['poly', 'rbf'],
-            'regressor__C': np.linspace(start=1, stop=100, num=5)
-        },
-        {  # ElasticNet
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(ElasticNet())],
-            'regressor': [ElasticNet()],
-            'regressor__alpha': np.linspace(start=1, stop=100, num=5),
-            'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
-        },
-        {  # DecisionTreeRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(DecisionTreeRegressor())],
-            'regressor': [DecisionTreeRegressor()]
-        },
-        {  # KNeighborsRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough'],
-            'regressor': [KNeighborsRegressor()],
-            'regressor__n_neighbors': [5, 10, 15],
-            'regressor__weights': ['uniform', 'distance']
-        },
-        {  # RandomForestRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(RandomForestRegressor())],
-            'regressor': [RandomForestRegressor()]
-        },
-        {  # MLPRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough'],
-            'regressor': [MLPRegressor()]
-        },
-        {  # LinearRegression
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(LinearRegression())],
-            'regressor': [LinearRegression()]
-        }
-    ]
-
-    ####################################################################################################################
-    # Data
-    ####################################################################################################################
 
     # Retrieve data from s3 and format into dataframe
     df = func.create_df_from_s3(bucket=bucket)
@@ -139,6 +56,95 @@ def main():
     # Prepare and split data
     X_train, X_test, y_train, y_test = func.prepare_my_data(my_df=df_sf_features)
 
+    ####################################################################################################################
+    # Define Pipeline
+    ####################################################################################################################
+
+    # Define Pipeline
+    regression_pipe = Pipeline([
+        ('scaler', StandardScaler()),
+        ('feature_selection', SelectFromModel(CatBoostRegressor)),
+        ('regressor', CatBoostRegressor())
+    ])
+
+    param_grid = [
+        {  # CatBoostRegressor
+            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(CatBoostRegressor())],
+            'regressor': [CatBoostRegressor()],
+            'regressor__depth': [4, 6, 8, 10],
+            'regressor__learning_rate': [0.01, 0.05, 0.1],
+            'regressor__iterations': [500, 1000, 1500],
+            'regressor__loss_function': ['RMSE'],
+            'regressor__od_pval': [10e-2],
+            'regressor__logging_level': ['Silent']
+        }
+        # {  # GaussianProcessRegressor
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough'],
+        #     'regressor': [GaussianProcessRegressor()],
+        #     'regressor__kernel': [DotProduct() + WhiteKernel()]
+        # },
+        # {  # SVR with Feature Selection
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough',
+        #                           SelectFromModel(SVR(kernel='linear'))],
+        #     'regressor': [SVR()],
+        #     'regressor__kernel': ['linear'],
+        #     'regressor__C': np.linspace(start=1, stop=100, num=5)
+        # },
+        # {  # SVR
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough'],
+        #     'regressor': [SVR()],
+        #     'regressor__kernel': ['poly', 'rbf'],
+        #     'regressor__C': np.linspace(start=1, stop=100, num=5)
+        # },
+        # {  # ElasticNet
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough',
+        #                           SelectFromModel(ElasticNet())],
+        #     'regressor': [ElasticNet()],
+        #     'regressor__alpha': np.linspace(start=1, stop=100, num=5),
+        #     'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
+        # },
+        # {  # DecisionTreeRegressor
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough',
+        #                           SelectFromModel(DecisionTreeRegressor())],
+        #     'regressor': [DecisionTreeRegressor()]
+        # },
+        # {  # KNeighborsRegressor
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough'],
+        #     'regressor': [KNeighborsRegressor()],
+        #     'regressor__n_neighbors': [5, 10, 15],
+        #     'regressor__weights': ['uniform', 'distance']
+        # },
+        # {  # RandomForestRegressor
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough',
+        #                           SelectFromModel(RandomForestRegressor())],
+        #     'regressor': [RandomForestRegressor()]
+        # },
+        # {  # MLPRegressor
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough'],
+        #     'regressor': [MLPRegressor()]
+        # },
+        # {  # LinearRegression
+        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
+        #     'feature_selection': ['passthrough',
+        #                           SelectFromModel(LinearRegression())],
+        #     'regressor': [LinearRegression()]
+        # }
+    ]
+
+    ####################################################################################################################
+    # Training
+    ####################################################################################################################
+
     logger.info('Starting Regressor Training')
 
     model = func.train_my_model(my_pipeline=regression_pipe,
@@ -148,6 +154,10 @@ def main():
                                 style='grid')
 
     logger.info('Regressor Training Complete')
+
+    ####################################################################################################################
+    # Validation
+    ####################################################################################################################
 
     list_scores = func.score_my_model(my_model=model, x_test=X_test, y_test=y_test)
 

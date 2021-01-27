@@ -1,6 +1,12 @@
 import boto3
 import numpy as np
 import pandas as pd
+import logging
+from io import StringIO, BytesIO
+import gzip
+import itertools
+import configparser
+
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score
 from sklearn.ensemble import RandomForestRegressor, VotingRegressor, IsolationForest
 from sklearn.linear_model import LinearRegression, ElasticNet
@@ -11,14 +17,23 @@ from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
+
 from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
-import logging
-from io import StringIO, BytesIO
-import gzip
+
 from catboost import CatBoostRegressor
-import itertools
-import configparser
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from keras import backend as K
+
+import tensorflow as tf
+
+# Limit GPU usage to 3GB to prevent using all of the available GPU memory
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_virtual_device_configuration(gpus[0],
+                                                        [tf.config.experimental.VirtualDeviceConfiguration(
+                                                            memory_limit=3036)])
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -100,7 +115,8 @@ def prepare_my_data(my_df):
     return X_train, X_test, y_train, y_test
 
 
-def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, style='random', filename='searchcv'):
+def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, style='random', filename='searchcv',
+                   n_jobs=-1):
     """
     Wrapper for training a regression model to predict housing prices
     :param my_pipeline: Training Pipeline, an instance of sklearn's Pipeline
@@ -110,6 +126,7 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
     :param search: Number of iterations to search in RandomizedSearchCV, default 50
     :param style: Search style, default to RandomizedSearchCV
     :param filename: filename to save off files
+    :param n_jobs: n_jobs to conduct training
     :return: RandomizedSearchCV object
     """
 
@@ -119,8 +136,8 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
                                 param_distributions=my_param_grid,
                                 n_iter=search,
                                 cv=5,
-                                n_jobs=-1,
-                                verbose=3)
+                                n_jobs=n_jobs,
+                                verbose=1)
 
         cv.fit(x_train, y_train)
 
@@ -131,8 +148,8 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
         cv = GridSearchCV(estimator=my_pipeline,
                           param_grid=my_param_grid,
                           cv=5,
-                          n_jobs=-1,
-                          verbose=3)
+                          n_jobs=n_jobs,
+                          verbose=1)
 
         cv.fit(x_train, y_train)
 
@@ -151,7 +168,7 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
         cv = BayesSearchCV(estimator=my_pipeline,
                            search_spaces=my_param_grid,
                            n_iter=search,
-                           n_jobs=16,
+                           n_jobs=n_jobs,
                            cv=5)
 
         cv.fit(x_train, y_train, callback=DeltaXStopper(0.01))
@@ -375,3 +392,58 @@ def create_model_combinations(dict_input):
         list_voting_regressors.append(VotingRegressor(list_model_format))
 
     return list_voting_regressors
+
+
+def create_model(optimizer='adam', init='uniform', input_dim=12, dense_nparams=256):
+    """
+    Simple wrapper to create a deep learning model using the Keras API
+    :param optimizer: Optimizer algorithm
+    :param init: How to initialize the tensors
+    :param input_dim: int, the size of the input (number of features)
+    :param dense_nparams: How large the first layer should be
+    :return:
+    """
+    # Create model
+    model = Sequential()
+    model.add(Dense(dense_nparams, input_dim=input_dim, kernel_initializer=init, activation='relu', name='layer1'))
+    model.add(Dense(32, activation='relu', name='layer2'))
+    model.add(Dense(1, kernel_initializer='normal', name='layer3'))
+
+    # Compile model
+    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination])
+
+    return model
+
+
+def coeff_determination(y_true, y_pred):
+    """
+    Custom Keras metric, R2 score
+    :param y_true: true label
+    :param y_pred: predicted label
+    :return:
+    """
+    SS_res = K.sum(K.square(y_true - y_pred))
+    SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
+    return 1 - SS_res / (SS_tot + K.epsilon())
+
+
+def retrieve_train_test():
+    """
+    Aids with testing pipelines in the console
+    :return:
+    """
+    import pickle
+
+    with open('data/models/x_train.pickle', 'rb') as file:
+        X_train = pickle.load(file)
+
+    with open('data/models/x_test.pickle', 'rb') as file:
+        X_test = pickle.load(file)
+
+    with open('data/models/y_train.pickle', 'rb') as file:
+        y_train = pickle.load(file)
+
+    with open('data/models/y_test.pickle', 'rb') as file:
+        y_test = pickle.load(file)
+
+    return X_train, X_test, y_train, y_test
