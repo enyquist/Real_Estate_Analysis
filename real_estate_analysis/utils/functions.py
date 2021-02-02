@@ -17,26 +17,31 @@ from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+import spacy
 
 from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
 
 from catboost import CatBoostRegressor
 
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from keras import backend as K
-
-import tensorflow as tf
-
-# Limit GPU usage to 3GB to prevent using all of the available GPU memory
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_virtual_device_configuration(gpus[0],
-                                                        [tf.config.experimental.VirtualDeviceConfiguration(
-                                                            memory_limit=3036)])
-
 config = configparser.ConfigParser()
 config.read('../config.ini')
+
+
+def prep_gpu(gb=3):
+    """
+    Function to turn on tensorflow and configure gpu
+    :return:
+    """
+    import tensorflow as tf
+
+    # Limit GPU usage to 3GB to prevent using all of the available GPU memory
+    gpus = tf.config.list_physical_devices('GPU')
+    # tf.config.experimental.set_virtual_device_configuration(gpus[0],
+    #                                                         [tf.config.experimental.VirtualDeviceConfiguration(
+    #                                                             memory_limit=gb*3)])
+    tf.config.experimental.set_memory_growth(gpus[0], True)
 
 
 def create_logger(e_handler_name, t_handler_name):
@@ -76,11 +81,12 @@ def create_logger(e_handler_name, t_handler_name):
     return logger
 
 
-def prepare_my_data(my_df):
+def prepare_my_data(my_df, deep_learning=False):
     """
     Wrapper to clean and prepare data for downstream tasks
     :param my_df: DataFrame of features
-    :return: Split Dataset into X, y (including outliers), and a train/test split without outliers
+    :param deep_learning: Switch if to use deep learning, adds NLP processing to data
+    :return: Split Dataset into a train/test split without outliers
     """
 
     # Imputer Instance
@@ -92,19 +98,40 @@ def prepare_my_data(my_df):
     # Drop entries that have no list_price or lat / long
     my_df = my_df.dropna(axis=0, subset=['list_price',
                                          'location.address.coordinate.lon',
-                                         'location.address.coordinate.lat'])
+                                         'location.address.coordinate.lat',
+                                         'tags'])
 
     # split into features and targets elements
-    X, y = my_df.drop('list_price', axis=1).values, my_df['list_price'].values
+    X, y = my_df.drop(['list_price', 'tags'], axis=1).values, my_df['list_price'].values
 
     # Impute features
     X = imp.fit_transform(X)
+
+    scaler = StandardScaler()  # Selected as it was most often the scaler used during GridSearchCV
+
+    X = scaler.fit_transform(X)
 
     # Outlier Detection
     clf = IsolationForest(random_state=42).fit_predict(X)
 
     # Mask outliers
     mask = np.where(clf == -1)
+
+    if deep_learning:
+        # Load SpaCy model
+        nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser'])
+
+        # Collect SpaCy vectors
+        list_vectors = []
+
+        for idx, row in my_df.iterrows():
+            row = ' '.join(row.tags.strip("'][' '").split("', '"))
+            list_vectors.append(nlp(row).vector)
+
+        vectors = np.stack(list_vectors, axis=0)
+
+        # Concatenate vectors back to X as a part of feature engineering
+        X = np.concatenate([X, vectors], axis=1)
 
     # Split data using outlier-free data
     X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0),
@@ -164,7 +191,6 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
         return cv
 
     if style == 'bayes':
-
         cv = BayesSearchCV(estimator=my_pipeline,
                            search_spaces=my_param_grid,
                            n_iter=search,
@@ -262,7 +288,7 @@ def s3_to_pandas_with_processing(client, bucket, key, header=None):
     return pd.read_csv(StringIO(lines), header=header, dtype=str)
 
 
-def create_df_from_s3(bucket):
+def create_df_from_s3(bucket='re-raw-data'):
     """
     Wrapper to collect and append DataFrames from an s3 bucket
     :param bucket: Name of the s3 bucket
@@ -394,23 +420,38 @@ def create_model_combinations(dict_input):
     return list_voting_regressors
 
 
-def create_model(optimizer='adam', init='uniform', input_dim=12, dense_nparams=256):
+def create_model(input_size=12):
     """
     Simple wrapper to create a deep learning model using the Keras API
-    :param optimizer: Optimizer algorithm
-    :param init: How to initialize the tensors
-    :param input_dim: int, the size of the input (number of features)
-    :param dense_nparams: How large the first layer should be
+    :param input_size: int, the size of the input (number of features)
     :return:
     """
+    import tensorflow as tf
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
+    from tensorflow.keras.optimizers import Adam
+    import tensorflow_addons as tfa
+
     # Create model
     model = Sequential()
-    model.add(Dense(dense_nparams, input_dim=input_dim, kernel_initializer=init, activation='relu', name='layer1'))
-    model.add(Dense(32, activation='relu', name='layer2'))
-    model.add(Dense(1, kernel_initializer='normal', name='layer3'))
+
+    # Input Layer
+    model.add(Dense(units=128, input_shape=(input_size, ), kernel_initializer='normal', activation='relu',
+                    name='Input_layer'))
+
+    # Hidden Layers
+    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_1'))
+    model.add(Dropout(0.3, name='Dropout_1'))
+    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_2'))
+    model.add(Dropout(0.3, name='Dropout_2'))
+    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_3'))
+    model.add(Dropout(0.3, name='Dropout_3'))
+
+    # Output Layer
+    model.add(Dense(units=1, kernel_initializer='normal', activation='linear', name='Output_layer'))
 
     # Compile model
-    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination])
+    model.compile(loss='mean_squared_error', optimizer='adam', metrics=[coeff_determination])
 
     return model
 
@@ -422,28 +463,8 @@ def coeff_determination(y_true, y_pred):
     :param y_pred: predicted label
     :return:
     """
+    from keras import backend as K
+
     SS_res = K.sum(K.square(y_true - y_pred))
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res / (SS_tot + K.epsilon())
-
-
-def retrieve_train_test():
-    """
-    Aids with testing pipelines in the console
-    :return:
-    """
-    import pickle
-
-    with open('data/models/x_train.pickle', 'rb') as file:
-        X_train = pickle.load(file)
-
-    with open('data/models/x_test.pickle', 'rb') as file:
-        X_test = pickle.load(file)
-
-    with open('data/models/y_train.pickle', 'rb') as file:
-        y_train = pickle.load(file)
-
-    with open('data/models/y_test.pickle', 'rb') as file:
-        y_test = pickle.load(file)
-
-    return X_train, X_test, y_train, y_test

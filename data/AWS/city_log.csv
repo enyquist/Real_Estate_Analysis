@@ -1,75 +1,104 @@
 city,state,last_modified
-Witchita,KS,2021-01-20 07:12:00
-Overland Park,KS,2021-01-20 07:12:00
-Kansas City,KS,2021-01-20 07:12:00
-Olathe,KS,2021-01-20 07:12:00
-Topeka,KS,2021-01-20 07:12:00
-Lawrence,KS,2021-01-20 07:12:00
-Shawnee,KS,2021-01-20 07:12:00
-Manhattan,KS,2021-01-20 07:12:00
-Lenexa,KS,2021-01-20 07:12:00
-Minneapolis,MN,2021-01-01 13:56:00
-New Hope,MN,2021-01-01 13:56:00
-Maple Grove,MN,2021-01-01 13:56:00
-Plymouth,MN,2021-01-01 13:56:00
-Rochester,MN,2021-01-16 23:15:00
-Duluth,MN,2021-01-16 23:15:00
-Bloomington,MN,2021-01-16 23:15:00
-Brooklyn Park,MN,2021-01-16 23:15:00
-Woodbury,MN,2021-01-16 23:15:00
-St. Cloud,MN,2021-01-16 23:15:00
-Eagan,MN,2021-01-16 23:15:00
-Eden Prairie,MN,2021-01-16 23:15:00
-Blaine,MN,2021-01-16 23:15:00
-St. Paul,MN,2021-01-16 23:15:00
-Durham,NC,2020-12-29 23:32:00
-Raleigh,NC,2020-12-27 08:27:00
-Cary,NC,2020-12-27 08:27:00
-Greensboro,NC,2020-12-27 08:27:00
-Fayetteville,NC,2020-12-27 08:27:00
-Charlotte,NC,2020-12-27 08:27:00
-Chapel Hill,NC,2021-01-06 07:20:00
-Burlington,NC,2021-01-06 07:20:00
-Winston-Salem,NC,2021-01-06 07:20:00
-Highpoint,NC,2021-01-06 07:20:00
-Wilmington,NC,2021-01-15 11:27:00
-Asheville,NC,2021-01-15 11:27:00
-Concord,NC,2021-01-15 11:27:00
-Gastonia,NC,2021-01-15 11:27:00
-Jacksonville,NC,2021-01-15 11:27:00
-Apex,NC,2021-01-15 11:27:00
-Huntersville,NC,2021-01-15 11:27:00
-Rocky Mount,NC,2021-01-15 11:27:00
-Kannapolis,NC,2021-01-15 11:27:00
-Virginia Beach,VA,2021-01-20 22:12:00
-Norfolk,VA,2021-01-20 22:12:00
-Chesapeake,VA,2021-01-20 22:12:00
-Arlington,VA,2021-01-20 22:12:00
-Richmond,VA,2021-01-20 22:12:00
-Newport News,VA,2021-01-20 22:12:00
-Alexandria,VA,2021-01-20 22:12:00
-Hampton,VA,2021-01-20 22:12:00
-Roanoke,VA,2021-01-20 22:12:00
-Portsmouth,VA,2021-01-20 22:12:00
-Suffolk,VA,2021-01-20 22:12:00
-Lynchburg,VA,2021-01-20 22:12:00
-Centreville,VA,2021-01-20 22:12:00
-Dale City,VA,2021-01-20 22:12:00
-Reston,VA,2021-01-20 22:12:00
-Harrisonburg,VA,2021-01-20 22:12:00
-Leesburg,VA,2021-01-20 22:12:00
-Charleston,SC,2021-01-22 05:41:40
-Columbia,SC,2021-01-22 05:41:40
-North Charleston,SC,2021-01-22 05:41:40
-Mount Pleasant,SC,2021-01-22 05:41:40
-Rock Hill,SC,2021-01-22 05:41:40
-Greenville,SC,2021-01-22 05:41:40
-Summerville,SC,2021-01-22 05:41:40
-Baltimore,MD,2021-01-22 05:41:40
-Columbia,MD,2021-01-22 05:41:40
-Germantown,MD,2021-01-22 05:41:40
-Silver Spring,MD,2021-01-22 05:41:40
-Waldorf,MD,2021-01-22 05:41:40
-Ellicott City,MD,2021-01-22 05:41:40
-Frederick,MD,2021-01-22 05:41:40
-Glen Burnie ,MD,2021-01-22 05:41:40
+Witchita,KS,1/20/2021 7:12
+Overland Park,KS,1/20/2021 7:12
+Kansas City,KS,1/20/2021 7:12
+Olathe,KS,1/20/2021 7:12
+Topeka,KS,1/20/2021 7:12
+Lawrence,KS,1/20/2021 7:12
+Shawnee,KS,1/20/2021 7:12
+Manhattan,KS,1/20/2021 7:12
+Lenexa,KS,1/20/2021 7:12
+Baltimore,MD,1/22/2021 5:41
+Columbia,MD,1/22/2021 5:41
+Germantown,MD,1/22/2021 5:41
+Silver Spring,MD,1/22/2021 5:41
+Waldorf,MD,1/22/2021 5:41
+Ellicott City,MD,1/22/2021 5:41
+Frederick,MD,1/22/2021 5:41
+Glen Burnie ,MD,1/22/2021 5:41
+Gaithersburg,MD,1/27/2021 14:50
+Rockville,MD,1/27/2021 14:50
+Bethesda,MD,1/27/2021 14:50
+Dundalk,MD,1/27/2021 14:50
+Bowie,MD,1/27/2021 14:50
+Towson,MD,1/27/2021 14:50
+Aspen Hill,MD,1/27/2021 14:50
+Severn,MD,1/27/2021 14:50
+Wheaton,MD,1/27/2021 14:50
+Minneapolis,MN,1/1/2021 13:56
+New Hope,MN,1/1/2021 13:56
+Maple Grove,MN,1/1/2021 13:56
+Plymouth,MN,1/1/2021 13:56
+Rochester,MN,1/16/2021 23:15
+Duluth,MN,1/16/2021 23:15
+Bloomington,MN,1/16/2021 23:15
+Brooklyn Park,MN,1/16/2021 23:15
+Woodbury,MN,1/16/2021 23:15
+St. Cloud,MN,1/16/2021 23:15
+Eagan,MN,1/16/2021 23:15
+Eden Prairie,MN,1/16/2021 23:15
+Blaine,MN,1/16/2021 23:15
+St. Paul,MN,1/16/2021 23:15
+Lakeville,MN,1/27/2021 14:50
+Coon Rapids,MN,1/27/2021 14:50
+Burnsville,MN,1/27/2021 14:50
+Minnetonka,MN,1/27/2021 14:50
+Apple Valley,MN,1/27/2021 14:50
+Edina,MN,1/27/2021 14:50
+Durham,NC,12/29/2020 23:32
+Raleigh,NC,12/27/2020 8:27
+Cary,NC,12/27/2020 8:27
+Greensboro,NC,12/27/2020 8:27
+Fayetteville,NC,12/27/2020 8:27
+Charlotte,NC,12/27/2020 8:27
+Chapel Hill,NC,1/6/2021 7:20
+Burlington,NC,1/6/2021 7:20
+Winston-Salem,NC,1/6/2021 7:20
+Highpoint,NC,1/6/2021 7:20
+Wilmington,NC,1/15/2021 11:27
+Asheville,NC,1/15/2021 11:27
+Concord,NC,1/15/2021 11:27
+Gastonia,NC,1/15/2021 11:27
+Jacksonville,NC,1/15/2021 11:27
+Apex,NC,1/15/2021 11:27
+Huntersville,NC,1/15/2021 11:27
+Rocky Mount,NC,1/15/2021 11:27
+Kannapolis,NC,1/15/2021 11:27
+Charleston,SC,1/22/2021 5:41
+Columbia,SC,1/22/2021 5:41
+North Charleston,SC,1/22/2021 5:41
+Mount Pleasant,SC,1/22/2021 5:41
+Rock Hill,SC,1/22/2021 5:41
+Greenville,SC,1/22/2021 5:41
+Summerville,SC,1/22/2021 5:41
+Virginia Beach,VA,1/20/2021 22:12
+Norfolk,VA,1/20/2021 22:12
+Chesapeake,VA,1/20/2021 22:12
+Arlington,VA,1/20/2021 22:12
+Richmond,VA,1/20/2021 22:12
+Newport News,VA,1/20/2021 22:12
+Alexandria,VA,1/20/2021 22:12
+Hampton,VA,1/20/2021 22:12
+Roanoke,VA,1/20/2021 22:12
+Portsmouth,VA,1/20/2021 22:12
+Suffolk,VA,1/20/2021 22:12
+Lynchburg,VA,1/20/2021 22:12
+Centreville,VA,1/20/2021 22:12
+Dale City,VA,1/20/2021 22:12
+Reston,VA,1/20/2021 22:12
+Harrisonburg,VA,1/20/2021 22:12
+Leesburg,VA,1/20/2021 22:12
+Philadephia,PA,1/27/2021 14:50
+Pittsburg,PA,1/27/2021 14:50
+Allentown,PA,1/27/2021 14:50
+Erie,PA,1/27/2021 14:50
+Reading City,PA,1/27/2021 14:50
+Upper Darby,PA,1/27/2021 14:50
+Scranton,PA,1/27/2021 14:50
+Bensalem,PA,1/27/2021 14:50
+Lancaster City,PA,1/27/2021 14:50
+Lower Merion,PA,1/27/2021 14:50
+Bethlehem,PA,1/27/2021 14:53
+Abington,PA,1/27/2021 14:53
+Bristol Township,PA,1/27/2021 14:53
+Millcreek Township,PA,1/27/2021 14:53

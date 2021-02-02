@@ -12,6 +12,10 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from catboost import CatBoostRegressor
 
+from xgboost import XGBRegressor
+
+import pickle
+
 import real_estate_analysis.utils.functions as func
 
 
@@ -62,14 +66,16 @@ def main():
 
     # Define Pipeline
     regression_pipe = Pipeline([
-        ('scaler', StandardScaler()),
         ('feature_selection', SelectFromModel(CatBoostRegressor)),
         ('regressor', CatBoostRegressor())
     ])
 
+    # Searched with other algorithms listed below, but removed after finding they performed poorly:
+    # GaussianProcessRegressor, SVR, ElasticNet, DecisionTreeRegressor, KNeighborsRegressor,
+    # RandomForestRegressor, MLPRegressor, LinearRegression
+
     param_grid = [
         {  # CatBoostRegressor
-            'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
             'feature_selection': ['passthrough',
                                   SelectFromModel(CatBoostRegressor())],
             'regressor': [CatBoostRegressor()],
@@ -79,66 +85,16 @@ def main():
             'regressor__loss_function': ['RMSE'],
             'regressor__od_pval': [10e-2],
             'regressor__logging_level': ['Silent']
+        },
+        {  # XGBoost
+            'feature_selection': ['passthrough',
+                                  SelectFromModel(XGBRegressor())],
+            'regressor': [XGBRegressor()],
+            'regressor__n_estimators': [1000, 1500, 2500],
+            'regressor__max_depth': [4, 6, 8],
+            'regressor__learning_rate': [0.05, 0.1, 0.3],
+            'regressor__booster': ['gbtree']
         }
-        # {  # GaussianProcessRegressor
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough'],
-        #     'regressor': [GaussianProcessRegressor()],
-        #     'regressor__kernel': [DotProduct() + WhiteKernel()]
-        # },
-        # {  # SVR with Feature Selection
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough',
-        #                           SelectFromModel(SVR(kernel='linear'))],
-        #     'regressor': [SVR()],
-        #     'regressor__kernel': ['linear'],
-        #     'regressor__C': np.linspace(start=1, stop=100, num=5)
-        # },
-        # {  # SVR
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough'],
-        #     'regressor': [SVR()],
-        #     'regressor__kernel': ['poly', 'rbf'],
-        #     'regressor__C': np.linspace(start=1, stop=100, num=5)
-        # },
-        # {  # ElasticNet
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough',
-        #                           SelectFromModel(ElasticNet())],
-        #     'regressor': [ElasticNet()],
-        #     'regressor__alpha': np.linspace(start=1, stop=100, num=5),
-        #     'regressor__l1_ratio': np.linspace(start=0, stop=1, num=5)
-        # },
-        # {  # DecisionTreeRegressor
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough',
-        #                           SelectFromModel(DecisionTreeRegressor())],
-        #     'regressor': [DecisionTreeRegressor()]
-        # },
-        # {  # KNeighborsRegressor
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough'],
-        #     'regressor': [KNeighborsRegressor()],
-        #     'regressor__n_neighbors': [5, 10, 15],
-        #     'regressor__weights': ['uniform', 'distance']
-        # },
-        # {  # RandomForestRegressor
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough',
-        #                           SelectFromModel(RandomForestRegressor())],
-        #     'regressor': [RandomForestRegressor()]
-        # },
-        # {  # MLPRegressor
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough'],
-        #     'regressor': [MLPRegressor()]
-        # },
-        # {  # LinearRegression
-        #     'scaler': [RobustScaler(), StandardScaler(), PowerTransformer(), QuantileTransformer()],
-        #     'feature_selection': ['passthrough',
-        #                           SelectFromModel(LinearRegression())],
-        #     'regressor': [LinearRegression()]
-        # }
     ]
 
     ####################################################################################################################
@@ -173,34 +129,34 @@ def main():
 if __name__ == '__main__':
     main()
 
-
 #######################################################################################################################
 # s3 Data
 #######################################################################################################################
 
-# 2021-01-15 19:00:11,316:MainProcess:root:INFO:Results from Search:
+# 2021-01-28 00:07:10,310:MainProcess:root:INFO:Results from Search:
 
-# 2021-01-15 19:00:11,317:MainProcess:root:INFO:Search best estimator:
-# Pipeline(steps=[('scaler', QuantileTransformer()),
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search best estimator:
+# Pipeline(steps=[('scaler', StandardScaler()),
 #                 ('feature_selection', 'passthrough'),
-#                 ('regressor', <catboost.core.CatBoostRegressor object at 0x0000024FFA3F1B88>)])
+#                 ('regressor',
+#                  <catboost.core.CatBoostRegressor object at 0x00000274B98DF648>)])
 
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Best params:
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Best params:
 # {'feature_selection': 'passthrough',
-# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000024FF4670FC8>,
+# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000027572B037C8>,
 # 'regressor__depth': 8,
 # 'regressor__iterations': 1500,
 # 'regressor__learning_rate': 0.1,
+# 'regressor__logging_level': 'Silent',
 # 'regressor__loss_function': 'RMSE',
-# 'scaler': QuantileTransformer()}
+# 'regressor__od_pval': 0.1,
+# 'scaler': StandardScaler()}
 
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Cross Validation Scores:
-# [0.86032536 0.78482347 0.76833826 0.71513614 0.72422007]
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Cross Validation Scores:
+# [0.75494423 0.68898657 0.7131733  0.68125362 0.75666829]
 
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search Validation Score: 0.78
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Validation Score: 0.75
 
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search accuracy on test data: 0.77 (+/- 0.10)
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search accuracy on test data: 0.72 (+/- 0.06)
 
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search test score: 0.83
-
-# 2021-01-15 19:00:11,318:MainProcess:root:INFO:Search R2 score: 0.83
+# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search test score: 0.78
