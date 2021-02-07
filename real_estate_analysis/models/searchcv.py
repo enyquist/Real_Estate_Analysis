@@ -52,6 +52,8 @@ def main():
         'description.stories',
         'location.address.coordinate.lon',
         'location.address.coordinate.lat',
+        'location.address.state_code',
+        'tags',
         'list_price'
     ]
 
@@ -107,7 +109,8 @@ def main():
                                 my_param_grid=param_grid,
                                 x_train=X_train,
                                 y_train=y_train,
-                                style='grid')
+                                style='grid',
+                                n_jobs=15)
 
     logger.info('Regressor Training Complete')
 
@@ -133,30 +136,28 @@ if __name__ == '__main__':
 # s3 Data
 #######################################################################################################################
 
-# 2021-01-28 00:07:10,310:MainProcess:root:INFO:Results from Search:
+# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Results from Search:
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search best estimator:
-# Pipeline(steps=[('scaler', StandardScaler()),
-#                 ('feature_selection', 'passthrough'),
+# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Search best estimator:
+# Pipeline(steps=[('feature_selection', 'passthrough'),
 #                 ('regressor',
-#                  <catboost.core.CatBoostRegressor object at 0x00000274B98DF648>)])
+#                  <catboost.core.CatBoostRegressor object at 0x0000021601E61FC8>)])
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Best params:
+# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Search Best params:
 # {'feature_selection': 'passthrough',
-# 'regressor': <catboost.core.CatBoostRegressor object at 0x0000027572B037C8>,
+# 'regressor': <catboost.core.CatBoostRegressor object at 0x00000215EFD73448>,
 # 'regressor__depth': 8,
 # 'regressor__iterations': 1500,
 # 'regressor__learning_rate': 0.1,
 # 'regressor__logging_level': 'Silent',
 # 'regressor__loss_function': 'RMSE',
-# 'regressor__od_pval': 0.1,
-# 'scaler': StandardScaler()}
+# 'regressor__od_pval': 0.1}
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Cross Validation Scores:
-# [0.75494423 0.68898657 0.7131733  0.68125362 0.75666829]
+# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search Cross Validation Scores:
+# [0.77533568 0.8059569  0.76499073 0.65052428 0.79152382]
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search Validation Score: 0.75
+# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search Validation Score: 0.78
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search accuracy on test data: 0.72 (+/- 0.06)
+# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search accuracy on test data: 0.76 (+/- 0.11)
 
-# 2021-01-28 00:07:10,311:MainProcess:root:INFO:Search test score: 0.78
+# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search test score: 0.80

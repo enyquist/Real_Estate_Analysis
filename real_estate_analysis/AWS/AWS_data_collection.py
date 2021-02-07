@@ -48,13 +48,14 @@ def main():
                 if response['ResponseMetadata']['HTTPStatusCode'] == 200:
                     logger.info(f'{str_filename} successfully uploaded')
                     df_city_log.loc[idx, 'last_modified'] = today.strftime('%Y-%m-%d %H:%M:%S')
+
+                    # Save df_city_log
+                    df_city_log.to_csv(LOG_FILEPATH, index=False)
+
                 else:
                     logger.info(f'{str_filename} failed to upload')
             except TypeError as e:
                 logger.error(f'{str_filename} resulted in error: {e}')
-
-    # Save df_city_log
-    df_city_log.to_csv(LOG_FILEPATH, index=False)
 
     logger.info(f'Data collection complete')
 

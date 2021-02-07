@@ -95,14 +95,15 @@ def prepare_my_data(my_df, deep_learning=False):
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
     my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
 
-    # Drop entries that have no list_price or lat / long
+    # Drop entries that have no list_price, lat / long, tags, or associated city
     my_df = my_df.dropna(axis=0, subset=['list_price',
                                          'location.address.coordinate.lon',
                                          'location.address.coordinate.lat',
-                                         'tags'])
+                                         'tags',
+                                         'location.address.state_code'])
 
     # split into features and targets elements
-    X, y = my_df.drop(['list_price', 'tags'], axis=1).values, my_df['list_price'].values
+    X, y = my_df.drop(['list_price', 'tags', 'location.address.state_code'], axis=1).values, my_df['list_price'].values
 
     # Impute features
     X = imp.fit_transform(X)
@@ -137,7 +138,8 @@ def prepare_my_data(my_df, deep_learning=False):
     X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0),
                                                         np.delete(y, mask),
                                                         test_size=0.2,
-                                                        random_state=42)
+                                                        random_state=42,
+                                                        stratify=np.delete(my_df['location.address.state_code'].values, mask))
 
     return X_train, X_test, y_train, y_test
 
@@ -420,38 +422,39 @@ def create_model_combinations(dict_input):
     return list_voting_regressors
 
 
-def create_model(input_size=12):
+def create_model(input_size=12, hidden_layers=3):
     """
     Simple wrapper to create a deep learning model using the Keras API
     :param input_size: int, the size of the input (number of features)
+    :param hidden_layers: Int, how many hidden layers to create in the model
     :return:
     """
     import tensorflow as tf
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
-    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.optimizers import Adam, SGD
+    from tensorflow.keras import activations
     import tensorflow_addons as tfa
 
     # Create model
     model = Sequential()
 
     # Input Layer
-    model.add(Dense(units=128, input_shape=(input_size, ), kernel_initializer='normal', activation='relu',
-                    name='Input_layer'))
+    model.add(Dense(units=input_size, input_shape=(input_size, ),
+                    kernel_initializer='normal', activation=activations.selu, name='Input_layer'))
 
     # Hidden Layers
-    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_1'))
-    model.add(Dropout(0.3, name='Dropout_1'))
-    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_2'))
-    model.add(Dropout(0.3, name='Dropout_2'))
-    model.add(Dense(256, kernel_initializer='normal', activation='relu', name='Hidden_3'))
-    model.add(Dropout(0.3, name='Dropout_3'))
+    for layer in range(1, hidden_layers + 1):
+        model.add(Dense(input_size, kernel_initializer='normal', activation=activations.selu, name=f'Hidden_{layer}'))
+        model.add(Dropout(0.3, name=f'Dropout_{layer}'))
 
     # Output Layer
     model.add(Dense(units=1, kernel_initializer='normal', activation='linear', name='Output_layer'))
 
+    optimizer = Adam(lr=10e-6)
+
     # Compile model
-    model.compile(loss='mean_squared_error', optimizer='adam', metrics=[coeff_determination])
+    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination])
 
     return model
 

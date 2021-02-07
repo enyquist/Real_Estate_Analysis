@@ -41,6 +41,8 @@ def main():
         'description.stories',
         'location.address.coordinate.lon',
         'location.address.coordinate.lat',
+        'location.address.state_code',
+        'tags',
         'list_price'
     ]
 
@@ -57,7 +59,8 @@ def main():
 
     # keras_model = KerasRegressor(build_fn=func.create_model(), verbose=1)
 
-    model = func.create_model(input_size=X_train.shape[1])
+    model = func.create_model(input_size=X_train.shape[1],
+                              hidden_layers=10)
 
     # # Define Pipeline
     # regression_pipe = Pipeline([
@@ -80,7 +83,7 @@ def main():
 
     model.fit(x=X_train,
               y=y_train,
-              batch_size=256,
+              batch_size=2048,
               epochs=100000,
               verbose=1,
               callbacks=[callbacks.EarlyStopping(patience=200)],
@@ -105,17 +108,12 @@ def main():
     logger.info('Results from Deep Learning Model:')
     logger.info(f'Test loss: {score[0]}')
     # Test loss:
-    # 48478846976.0
-    # 47115075584.0
-    # 39473725440.0
-    # 42526851072.0
-    # 18579416559.7 - catboost model
+    # 2021-02-03 12:08:06,993:MainProcess:root:INFO:Test loss: 39496515584.0
+    # 2021-02-04 18:31:22,519:MainProcess:root:INFO:Test loss: 36017999872.0
     logger.info(f'Test Accuracy: {score[1]}')
     # Test Accuracy:
-    # 0.3306
-    # 0.3466
-    # 0.4103
-    # 0.4120
+    # 2021-02-03 12:08:06,994:MainProcess:root:INFO:Test Accuracy: 0.5262999534606934
+    # 2021-02-04 18:31:22,519:MainProcess:root:INFO:Test Accuracy: 0.6196267008781433
 
     # logger.info('Results from Deep Learning Search:')
     # logger.info(f'Search best estimator: {model.best_estimator_}')

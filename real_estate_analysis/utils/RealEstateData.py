@@ -1,11 +1,16 @@
+import os
 import json
 import pandas as pd
 import requests
 import math
 import configparser
+import logging
+import pickle
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
+
+logger = logging.getLogger(__name__)
 
 
 class RealEstateData:
@@ -49,6 +54,11 @@ class RealEstateData:
 
         list_offset = self.define_chunks(housing_total)
 
+        list_missed_states = []
+        list_missed_cities = []
+        list_missed_offsets = []
+        list_collected_data = []
+
         for offset in list_offset:
 
             querystring = {"city": self.city,
@@ -64,9 +74,41 @@ class RealEstateData:
 
             response = requests.request("GET", url, headers=headers, params=querystring)
 
+            # Check for 200 response from requests module
             if response.status_code == 200:
                 json_content = json.loads(response.content)
-                list_json_data.append(json_content)
+
+                # Check for 200 response from RapidAPI server
+                if json_content['status'] == 200:
+                    list_json_data.append(json_content)
+
+                else:  # Try again if the server didn't return anything todo Error is usually 500: Error JSON parsing
+                    response = requests.request("GET", url, headers=headers, params=querystring)
+
+                    json_content = json.loads(response.content)
+
+                    if json_content['status'] == 200:
+                        list_json_data.append(json_content)
+
+                    else:
+                        logger.error(f'{self.state}-{self.city} failed on offset: {offset}')
+                        list_missed_states.append(self.state)
+                        list_missed_cities.append(self.city)
+                        list_missed_offsets.append(offset)
+                        list_collected_data.append(-1)
+
+        dict_missed_data = {'state': list_missed_states, 'city': list_missed_cities, 'offset': list_missed_offsets,
+                            'collected': list_collected_data}
+
+        if os.path.exists('../../data/models/missed_data.pickle'):
+            with open('../../data/models/missed_data.pickle', 'rb') as file:
+                df = pickle.load(file)
+                df = df.append(dict_missed_data, ignore_index=True)
+        else:
+            df = pd.DataFrame(dict_missed_data)
+
+        with open('../../data/models/missed_data.pickle', 'wb') as file:
+            pickle.dump(df, file)
 
         return list_json_data
 
