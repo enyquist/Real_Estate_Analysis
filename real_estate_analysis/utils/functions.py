@@ -108,7 +108,7 @@ def prepare_my_data(my_df, deep_learning=False):
     # Impute features
     X = imp.fit_transform(X)
 
-    scaler = StandardScaler()  # Selected as it was most often the scaler used during GridSearchCV
+    scaler = StandardScaler()  # Selected as it was most often the scaler used during searchcv.py
 
     X = scaler.fit_transform(X)
 
@@ -301,23 +301,28 @@ def create_df_from_s3(bucket='re-raw-data'):
                       aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
                       aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
 
+    # Paginate s3 bucket because objects exceeds 1,000
+    paginator = s3.get_paginator('list_objects_v2')
+
     # Get response from s3 with data from bucket re-raw-data
-    response = s3.list_objects(Bucket=bucket)
+    pages = paginator.paginate(Bucket=bucket)
 
-    # Lists
     list_data = []
-    list_contents = response['Contents']
+    for page in pages:
+        list_contents = page['Contents']
+        list_data.extend(list_contents)
 
-    for content in list_contents:
+    list_formatted_data = []
+    for content in list_data:
         key = content['Key']
         data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key)
         data.columns = data.iloc[0]
         data = data.drop(0)
         data = data.reset_index(drop=True)
-        list_data.append(data)
+        list_formatted_data.append(data)
 
     # Concat data into master Dataframe
-    df = pd.concat(list_data)
+    df = pd.concat(list_formatted_data)
 
     # Drop any duplicates in the dataset
     df = df.drop_duplicates()
