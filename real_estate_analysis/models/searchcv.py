@@ -1,20 +1,7 @@
-import numpy as np
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
-from sklearn.feature_selection import SelectFromModel
-from sklearn.linear_model import LinearRegression, ElasticNet
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neural_network import MLPRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
 from catboost import CatBoostRegressor
-
+from sklearn.feature_selection import SelectFromModel
+from sklearn.pipeline import Pipeline
 from xgboost import XGBRegressor
-
-import pickle
 
 import real_estate_analysis.utils.functions as func
 
@@ -30,47 +17,54 @@ def main():
     # Data
     ####################################################################################################################
 
-    bucket = 're-raw-data'
+    # bucket = 're-raw-data'
+    #
+    # # Retrieve data from s3 and format into dataframe
+    # df = func.create_df_from_s3(bucket=bucket)
+    #
+    # # Parse DataFrame for single family real estate
+    # df_sf = df[df['description.type'] == 'single_family']
+    #
+    # # ID features
+    # list_features = [
+    #     'description.year_built',
+    #     'description.baths_full',
+    #     'description.baths_3qtr',
+    #     'description.baths_half',
+    #     'description.baths_1qtr',
+    #     'description.lot_sqft',
+    #     'description.sqft',
+    #     'description.garage',
+    #     'description.beds',
+    #     'description.stories',
+    #     'location.address.coordinate.lon',
+    #     'location.address.coordinate.lat',
+    #     'location.address.state_code',
+    #     'tags',
+    #     'list_price'
+    # ]
+    #
+    # df_sf_features = df_sf[list_features]
+    #
+    # # Prepare and split data
+    # X_train, X_test, y_train, y_test = func.prepare_my_data(my_df=df_sf_features)
 
-    # Retrieve data from s3 and format into dataframe
-    df = func.create_df_from_s3(bucket=bucket)
-
-    # Parse DataFrame for single family real estate
-    df_sf = df[df['description.type'] == 'single_family']
-
-    # ID features
-    list_features = [
-        'description.year_built',
-        'description.baths_full',
-        'description.baths_3qtr',
-        'description.baths_half',
-        'description.baths_1qtr',
-        'description.lot_sqft',
-        'description.sqft',
-        'description.garage',
-        'description.beds',
-        'description.stories',
-        'location.address.coordinate.lon',
-        'location.address.coordinate.lat',
-        'location.address.state_code',
-        'tags',
-        'list_price'
-    ]
-
-    df_sf_features = df_sf[list_features]
-
-    # Prepare and split data
-    X_train, X_test, y_train, y_test = func.prepare_my_data(my_df=df_sf_features)
+    import pickle
+    with open('../../data/models/s3_batch/X_train.pickle', 'rb') as file:
+        X_train = pickle.load(file)
+    with open('../../data/models/s3_batch/X_test.pickle', 'rb') as file:
+        X_test = pickle.load(file)
+    with open('../../data/models/s3_batch/y_train.pickle', 'rb') as file:
+        y_train = pickle.load(file)
+    with open('../../data/models/s3_batch/y_test.pickle', 'rb') as file:
+        y_test = pickle.load(file)
 
     ####################################################################################################################
     # Define Pipeline
     ####################################################################################################################
 
     # Define Pipeline
-    regression_pipe = Pipeline([
-        ('feature_selection', SelectFromModel(CatBoostRegressor)),
-        ('regressor', CatBoostRegressor())
-    ])
+    regression_pipe = Pipeline([('regressor', CatBoostRegressor())])
 
     # Searched with other algorithms listed below, but removed after finding they performed poorly:
     # GaussianProcessRegressor, SVR, ElasticNet, DecisionTreeRegressor, KNeighborsRegressor,
@@ -78,8 +72,6 @@ def main():
 
     param_grid = [
         {  # CatBoostRegressor
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(CatBoostRegressor())],
             'regressor': [CatBoostRegressor()],
             'regressor__depth': [4, 6, 8, 10],
             'regressor__learning_rate': [0.01, 0.05, 0.1],
@@ -89,8 +81,6 @@ def main():
             'regressor__logging_level': ['Silent']
         },
         {  # XGBoost
-            'feature_selection': ['passthrough',
-                                  SelectFromModel(XGBRegressor())],
             'regressor': [XGBRegressor()],
             'regressor__n_estimators': [1000, 1500, 2500],
             'regressor__max_depth': [4, 6, 8],

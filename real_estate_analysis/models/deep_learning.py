@@ -1,9 +1,4 @@
-from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
-from sklearn.preprocessing import RobustScaler, StandardScaler, PowerTransformer, QuantileTransformer
-from sklearn.pipeline import Pipeline
 import tensorflow.keras.callbacks as callbacks
-from sklearn.model_selection import KFold
-import matplotlib.pylab as plt
 
 import real_estate_analysis.utils.functions as func
 

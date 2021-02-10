@@ -139,7 +139,8 @@ def prepare_my_data(my_df, deep_learning=False):
                                                         np.delete(y, mask),
                                                         test_size=0.2,
                                                         random_state=42,
-                                                        stratify=np.delete(my_df['location.address.state_code'].values, mask))
+                                                        stratify=np.delete(my_df['location.address.state_code'].values,
+                                                                           mask))
 
     return X_train, X_test, y_train, y_test
 
@@ -434,12 +435,10 @@ def create_model(input_size=12, hidden_layers=3):
     :param hidden_layers: Int, how many hidden layers to create in the model
     :return:
     """
-    import tensorflow as tf
     from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, BatchNormalization, Dropout
-    from tensorflow.keras.optimizers import Adam, SGD
+    from tensorflow.keras.layers import Dense, Dropout
+    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras import activations
-    import tensorflow_addons as tfa
 
     # Create model
     model = Sequential()

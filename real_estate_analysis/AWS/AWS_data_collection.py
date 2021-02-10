@@ -24,7 +24,7 @@ def main():
                                 t_handler_name='../logs/AWS_log.log')
 
     # Load CSV
-    df_city_log = pd.read_csv(LOG_FILEPATH)
+    df_city_log = pd.read_csv(LOG_FILEPATH, encoding='latin-1')
 
     # Format dates as datetime
     df_city_log['last_modified'] = pd.to_datetime(df_city_log['last_modified'])
