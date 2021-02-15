@@ -81,7 +81,87 @@ def create_logger(e_handler_name, t_handler_name):
     return logger
 
 
-def prepare_my_data(my_df, deep_learning=False):
+def prepare_my_data(my_df):
+    """
+
+    :param my_df:
+    :return:
+    """
+    # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
+    my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
+
+    # Drop entries that have no list_price, lat / long, tags, or associated city
+    my_df = my_df.dropna(axis=0, subset=['list_price',
+                                         'location.address.coordinate.lon',
+                                         'location.address.coordinate.lat',
+                                         'tags',
+                                         'location.address.state_code'])
+
+    my_df = my_df.reset_index(drop=True)
+
+    # split into features and targets elements
+    X, y = my_df.drop(['list_price', 'location.address.state_code'], axis=1), my_df[['list_price']]
+
+    # Collect all Tags
+    list_tags = []
+
+    for _, row in my_df.iterrows():
+        row = row.tags.strip("'][' '").split("', '")
+        for tag in row:
+            if tag not in list_tags:
+                list_tags.append(tag)
+
+    # Create template columns for tags
+    df_zeros = pd.DataFrame(data=np.zeros(shape=(len(X), len(list_tags)), dtype=np.int8), columns=list_tags)
+
+    # Concat tags template to X
+    X_with_zeros = pd.concat([X, df_zeros], axis=1)
+
+    # Encode tags in X
+    for idx, row in X.iterrows():
+        row = row.tags.strip("'][' '").split("', '")
+        if idx % 1000 == 0:
+            print(f'Encoding {idx / len(X) * 100:.3f}% complete')
+        for tag in row:
+            X_with_zeros.loc[idx, tag] = 1
+
+    # Split data, stratifying by state
+    X_train, X_test, y_train, y_test = train_test_split(X_with_zeros,
+                                                        y,
+                                                        test_size=0.2,
+                                                        random_state=42,
+                                                        stratify=my_df['location.address.state_code'])
+
+    # Combine split data into train and test sets  todo problem to scale target values?
+    df_train = pd.concat([X_train, y_train], axis=1)
+    df_test = pd.concat([X_test, y_test], axis=1)
+
+    # Drop tags, specifically to later use columns
+    df_train_no_tags = df_train.drop(['tags'], axis=1)
+    df_test_no_tags = df_test.drop(['tags'], axis=1)
+
+    # Impute missing values
+    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+    train_imp = imp.fit_transform(df_train_no_tags)
+    test_imp = imp.transform(df_test_no_tags)
+
+    # Scale train and test set
+    scaler = StandardScaler()
+    train_scale = scaler.fit_transform(train_imp)
+    test_scale = scaler.transform(test_imp)
+
+    # Outlier Detection and remove outliers
+    clf = IsolationForest(random_state=42).fit_predict(train_scale)
+    mask = np.where(clf == -1)
+    train_no_outlier = np.delete(train_scale, mask, axis=0)
+
+    df_train_final = pd.DataFrame(data=train_no_outlier, columns=df_train_no_tags.columns)
+    df_test_final = pd.DataFrame(data=test_scale, columns=df_test_no_tags.columns)
+
+    return df_train_final, df_test_final
+
+
+def prepare_my_data2(my_df, deep_learning=False):
     """
     Wrapper to clean and prepare data for downstream tasks
     :param my_df: DataFrame of features
@@ -331,6 +411,27 @@ def create_df_from_s3(bucket='re-raw-data'):
     return df
 
 
+def fetch_from_s3(bucket, key):
+    """
+
+    :param bucket:
+    :param key:
+    :return:
+    """
+    s3 = boto3.client('s3',
+                      region_name='us-east-1',
+                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
+                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
+
+    data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key)
+    data.columns = data.iloc[0]
+    data = data.drop(0)
+    data = data.reset_index(drop=True)
+    data = data.apply(lambda col: pd.to_numeric(col, errors='ignore'))
+
+    return data
+
+
 def create_best_models(results_path):
     """
     Creates the best models from the grid search
@@ -444,13 +545,14 @@ def create_model(input_size=12, hidden_layers=3):
     model = Sequential()
 
     # Input Layer
-    model.add(Dense(units=input_size, input_shape=(input_size, ),
+    model.add(Dense(units=input_size, input_shape=(input_size,),
                     kernel_initializer='normal', activation=activations.selu, name='Input_layer'))
 
     # Hidden Layers
     for layer in range(1, hidden_layers + 1):
         model.add(Dense(input_size, kernel_initializer='normal', activation=activations.selu, name=f'Hidden_{layer}'))
-        model.add(Dropout(0.3, name=f'Dropout_{layer}'))
+
+    model.add(Dropout(0.3, name=f'Dropout_{layer}'))
 
     # Output Layer
     model.add(Dense(units=1, kernel_initializer='normal', activation='linear', name='Output_layer'))

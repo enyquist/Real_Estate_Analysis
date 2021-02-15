@@ -1,5 +1,4 @@
 from catboost import CatBoostRegressor
-from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
 from xgboost import XGBRegressor
 
@@ -17,47 +16,14 @@ def main():
     # Data
     ####################################################################################################################
 
-    # bucket = 're-raw-data'
-    #
-    # # Retrieve data from s3 and format into dataframe
-    # df = func.create_df_from_s3(bucket=bucket)
-    #
-    # # Parse DataFrame for single family real estate
-    # df_sf = df[df['description.type'] == 'single_family']
-    #
-    # # ID features
-    # list_features = [
-    #     'description.year_built',
-    #     'description.baths_full',
-    #     'description.baths_3qtr',
-    #     'description.baths_half',
-    #     'description.baths_1qtr',
-    #     'description.lot_sqft',
-    #     'description.sqft',
-    #     'description.garage',
-    #     'description.beds',
-    #     'description.stories',
-    #     'location.address.coordinate.lon',
-    #     'location.address.coordinate.lat',
-    #     'location.address.state_code',
-    #     'tags',
-    #     'list_price'
-    # ]
-    #
-    # df_sf_features = df_sf[list_features]
-    #
-    # # Prepare and split data
-    # X_train, X_test, y_train, y_test = func.prepare_my_data(my_df=df_sf_features)
+    bucket = 're-formatted-data'
 
-    import pickle
-    with open('../../data/models/s3_batch/X_train.pickle', 'rb') as file:
-        X_train = pickle.load(file)
-    with open('../../data/models/s3_batch/X_test.pickle', 'rb') as file:
-        X_test = pickle.load(file)
-    with open('../../data/models/s3_batch/y_train.pickle', 'rb') as file:
-        y_train = pickle.load(file)
-    with open('../../data/models/s3_batch/y_test.pickle', 'rb') as file:
-        y_test = pickle.load(file)
+    df_train = func.fetch_from_s3(bucket=bucket, key='train')
+    df_test = func.fetch_from_s3(bucket=bucket, key='test')
+
+    # Split the data
+    X_train, y_train = df_train.drop(['list_price'], axis=1).values, df_train['list_price'].values
+    X_test, y_test = df_test.drop(['list_price'], axis=1).values, df_test['list_price'].values
 
     ####################################################################################################################
     # Define Pipeline
@@ -73,7 +39,7 @@ def main():
     param_grid = [
         {  # CatBoostRegressor
             'regressor': [CatBoostRegressor()],
-            'regressor__depth': [4, 6, 8, 10],
+            'regressor__depth': [6, 8, 10],
             'regressor__learning_rate': [0.01, 0.05, 0.1],
             'regressor__iterations': [500, 1000, 1500],
             'regressor__loss_function': ['RMSE'],
@@ -100,7 +66,7 @@ def main():
                                 x_train=X_train,
                                 y_train=y_train,
                                 style='grid',
-                                n_jobs=15)
+                                n_jobs=-1)
 
     logger.info('Regressor Training Complete')
 
