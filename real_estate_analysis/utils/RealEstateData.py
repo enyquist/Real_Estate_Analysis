@@ -115,32 +115,6 @@ class RealEstateData:
 
         return list_json_data
 
-    @property
-    def first_call(self):
-        """
-        Function to fetch the total number of listings in CITY, STATE from Realtor.com via Rapid API
-        :return: Total number of listings in CITY, STATE as int
-        """
-        url = "https://realtor-com-real-estate.p.rapidapi.com/for-sale"
-
-        querystring = {"city": self.city,
-                       "offset": 0,
-                       "state_code": self.state,
-                       "limit": "200",
-                       "sort": "newest"}
-
-        headers = {
-            'x-rapidapi-key': config['DEFAULT']['rapidapi_key'],
-            'x-rapidapi-host': config['DEFAULT']['rapidapi_host_re']
-        }
-
-        response = requests.request("GET", url, headers=headers, params=querystring)
-
-        if response.status_code == 200:
-            json_content = json.loads(response.content)
-            housing_total = json_content['data']['total']
-            return housing_total, json_content
-
     def api_call(self, offset=0):
         """
 
