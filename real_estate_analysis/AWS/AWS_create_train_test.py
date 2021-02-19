@@ -6,8 +6,6 @@ from real_estate_analysis.utils import functions as func
 config = configparser.ConfigParser()
 config.read('../config.ini')
 
-LOG_FILEPATH = '../../data/AWS/city_log.csv'
-
 
 def main():
     # Generate the boto3 client for interacting with S3

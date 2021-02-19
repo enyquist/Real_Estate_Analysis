@@ -40,22 +40,29 @@ def main():
             state = row['state']
             df_data = RealEstateData(city, state).results
             str_filename = f'{state}-{city}'
+            if df_data is not None:
 
-            # Stream to s3
-            try:
-                response = func.pandas_to_s3(df=df_data, client=s3, bucket='re-raw-data', key=str_filename)
+                # Stream to s3
+                try:
+                    response = func.pandas_to_s3(df=df_data, client=s3, bucket='re-raw-data', key=str_filename)
 
-                if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-                    logger.info(f'{str_filename} successfully uploaded')
-                    df_city_log.loc[idx, 'last_modified'] = today.strftime('%Y-%m-%d %H:%M:%S')
+                    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+                        logger.info(f'{str_filename} successfully uploaded')
+                        df_city_log.loc[idx, 'last_modified'] = today.strftime('%Y-%m-%d %H:%M:%S')
 
-                    # Save df_city_log
-                    df_city_log.to_csv(LOG_FILEPATH, index=False)
+                        # Save df_city_log
+                        df_city_log.to_csv(LOG_FILEPATH, index=False)
 
-                else:
-                    logger.info(f'{str_filename} failed to upload')
-            except TypeError as e:
-                logger.error(f'{str_filename} resulted in error: {e}')
+                    else:
+                        logger.info(f'{str_filename} failed to upload')
+                except TypeError as e:
+                    logger.error(f'{str_filename} resulted in error: {e}')
+            else:
+                logger.info(f"{str_filename} is not a valid city/state combination in Realtor.com's database")
+                df_city_log.drop(idx, inplace=True)
+                df_city_log.reset_index(drop=True, inplace=True)
+                df_city_log.to_csv(LOG_FILEPATH, index=False)
+                logger.info(f"{str_filename} has been deleted from city_log.csv")
 
     logger.info(f'Data collection complete')
 
