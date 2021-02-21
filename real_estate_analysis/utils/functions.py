@@ -379,8 +379,8 @@ def create_df_from_s3(bucket='re-raw-data'):
     """
     s3 = boto3.client('s3',
                       region_name='us-east-1',
-                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
-                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
+                      aws_access_key_id=config.get('AWS', 'aws_access_key_id'),
+                      aws_secret_access_key=config.get('AWS', 'aws_secret_access_key'))
 
     # Paginate s3 bucket because objects exceeds 1,000
     paginator = s3.get_paginator('list_objects_v2')
@@ -420,8 +420,8 @@ def fetch_from_s3(bucket, key):
     """
     s3 = boto3.client('s3',
                       region_name='us-east-1',
-                      aws_access_key_id=config['DEFAULT']['aws_access_key_id'],
-                      aws_secret_access_key=config['DEFAULT']['aws_secret_access_key'])
+                      aws_access_key_id=config.get('AWS', 'aws_access_key_id'),
+                      aws_secret_access_key=config.get('AWS', 'aws_secret_access_key'))
 
     data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key)
     data.columns = data.iloc[0]
@@ -458,8 +458,8 @@ def create_best_models(results_path):
     for model in list_model_names:
         df_models = df[df['param_regressor'].str.contains(model)]
         df_best_model = df_models.loc[df_models['mean_test_score'].idxmax()]
-        if df_best_model['mean_test_score'] > float(config['DEFAULT']['mean_test_score_threshold']) or \
-                df_best_model['std_test_score'] < float(config['DEFAULT']['std_test_score_threshold']):
+        if df_best_model['mean_test_score'] > float(config.get('DEFAULT', 'mean_test_score_threshold')) or \
+                df_best_model['std_test_score'] < float(config.get('DEFAULT', 'std_test_score_threshold')):
             dict_best_models[model] = df_best_model
 
     # Dictionary that contains the best params for each model type, used as a Switch-Case statement
@@ -538,7 +538,7 @@ def create_model(input_size=12, hidden_layers=3):
     """
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense, Dropout
-    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.optimizers import Adam, SGD
     from tensorflow.keras import activations
 
     # Create model
@@ -551,13 +551,12 @@ def create_model(input_size=12, hidden_layers=3):
     # Hidden Layers
     for layer in range(1, hidden_layers + 1):
         model.add(Dense(input_size, kernel_initializer='normal', activation=activations.selu, name=f'Hidden_{layer}'))
-
-    model.add(Dropout(0.3, name=f'Dropout_{layer}'))
+        # model.add(Dropout(0.3, name=f'Dropout_{layer}'))
 
     # Output Layer
     model.add(Dense(units=1, kernel_initializer='normal', activation='linear', name='Output_layer'))
 
-    optimizer = Adam(lr=10e-6)
+    optimizer = SGD(lr=10e-6)
 
     # Compile model
     model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination])

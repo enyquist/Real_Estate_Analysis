@@ -6,6 +6,7 @@ import math
 import configparser
 import logging
 import pickle
+import time
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -29,9 +30,11 @@ class RealEstateData:
     - Check for invalid input
     """
 
-    def __init__(self, city, state):
+    def __init__(self, city, state, api):
         self.city = city.upper()
         self.state = state.upper()
+        self.api = api
+        self.url = config.get(api, 'rapidapi_url')
         self._jsonREData = self.fetch_housing_data()
         self.results = self.parse()
 
@@ -46,106 +49,125 @@ class RealEstateData:
         Function to fetch all housing data from Realtor.com via RapidAPI
         :return: Dictionary of Dictionaries containing all the results from the the API call
         """
-        response = None
-        list_json_data = -1
+        list_json_data = None
+        list_missed_states = []
+        list_missed_cities = []
+        list_missed_offsets = []
+        list_collected_data = []
 
-        try:
-            # Call with offset=0
-            response = self.api_call()
+        response = self.api_call()
 
-        except requests.exceptions.Timeout:
-            # Maybe set up for a retry, or continue in a retry loop
-            pass
-
-        except requests.exceptions.RequestException as e:  # catastrophic error
-            raise SystemExit(e)
-
-        json_content = json.loads(response.content)
-        if json_content['status'] == 200:
-            housing_total = json_content['data']['total']
-
+        if self.validate_api_call(response):
+            json_content = json.loads(response.content)
             list_json_data = [json_content]
+            housing_total = self.get_housing_total(json_content=json_content)
+            list_offsets = self.define_chunks(total=housing_total)
 
-            list_offset = self.define_chunks(housing_total)
+            for offset in list_offsets:
+                time.sleep(0.2)
 
-            list_missed_states = []
-            list_missed_cities = []
-            list_missed_offsets = []
-            list_collected_data = []
+                response = self.api_call(offset=offset)
 
-            for offset in list_offset:
+                if self.validate_api_call(response):
+                    list_json_data.append(json_content)
 
-                response = self.api_call(offset)
+                else:  # Try again todo Error is usually 500: Error JSON parsing
 
-                # Check for 200 response from requests module
-                if response.status_code == 200:
-                    json_content = json.loads(response.content)
+                    response = self.api_call(offset=offset)
 
-                    # Check for 200 response from RapidAPI server
-                    if json_content['status'] == 200:
+                    if self.validate_api_call(response):
                         list_json_data.append(json_content)
 
-                    else:  # Try again if the server didn't return anything todo Error is usually 500: Error JSON parsing
-                        response = self.api_call(offset)
+                    else:
+                        logger.error(f'{self.state}-{self.city} failed on offset: {offset}')
+                        list_missed_states.append(self.state)
+                        list_missed_cities.append(self.city)
+                        list_missed_offsets.append(offset)
+                        list_collected_data.append(-1)
 
-                        json_content = json.loads(response.content)
+                        dict_missed_data = {'state': list_missed_states, 'city': list_missed_cities,
+                                            'offset': list_missed_offsets, 'collected': list_collected_data}
 
-                        if json_content['status'] == 200:
-                            list_json_data.append(json_content)
-
+                        if os.path.exists('../../data/models/missed_data.pickle'):
+                            with open('../../data/models/missed_data.pickle', 'rb') as file:
+                                df = pickle.load(file)
+                                df = df.append(dict_missed_data, ignore_index=True)
                         else:
-                            logger.error(f'{self.state}-{self.city} failed on offset: {offset}')
-                            list_missed_states.append(self.state)
-                            list_missed_cities.append(self.city)
-                            list_missed_offsets.append(offset)
-                            list_collected_data.append(-1)
+                            df = pd.DataFrame(dict_missed_data)
 
-            dict_missed_data = {'state': list_missed_states, 'city': list_missed_cities, 'offset': list_missed_offsets,
-                                'collected': list_collected_data}
-
-            if os.path.exists('../../data/models/missed_data.pickle'):
-                with open('../../data/models/missed_data.pickle', 'rb') as file:
-                    df = pickle.load(file)
-                    df = df.append(dict_missed_data, ignore_index=True)
-            else:
-                df = pd.DataFrame(dict_missed_data)
-
-            with open('../../data/models/missed_data.pickle', 'wb') as file:
-                pickle.dump(df, file)
+                        with open('../../data/models/missed_data.pickle', 'wb') as file:
+                            pickle.dump(df, file)
 
         return list_json_data
 
     def api_call(self, offset=0):
         """
-
+        Function to conduct an API call and return the response
         :param offset:
         :return:
         """
-        url = "https://realtor-com-real-estate.p.rapidapi.com/for-sale"
+        response = None
 
         querystring = {"city": self.city,
                        "offset": offset,
                        "state_code": self.state,
                        "limit": "200",
-                       "sort": "newest"}
+                       "sort": config.get(self.api, 'rapidapi_sort_method')}
 
         headers = {
-            'x-rapidapi-key': config['DEFAULT']['rapidapi_key'],
-            'x-rapidapi-host': config['DEFAULT']['rapidapi_host_re']
+            'x-rapidapi-key': config.get(self.api, 'rapidapi_key'),
+            'x-rapidapi-host': config.get(self.api, 'rapidapi_host')
         }
 
-        response = requests.request("GET", url, headers=headers, params=querystring)
+        try:
+            response = requests.request("GET", self.url, headers=headers, params=querystring)
+
+        except requests.exceptions.Timeout:
+            # todo Maybe set up for a retry, or continue in a retry loop
+            pass
+
+        except requests.exceptions.RequestException as e:  # catastrophic error
+            raise SystemExit(e)
 
         return response
 
-    @staticmethod
-    def define_chunks(total, chunk=int(config['DEFAULT']['rapidapi_offset'])):
+    def validate_api_call(self, response):
+        """
+        Checks that the 'status' code in the JSON content is 200, indicating that RapidAPI returned data
+        :param response: RapidAPI response object
+        :return: True if response contained data, False otherwise
+        """
+        if self.api == 'RAPIDAPI_SALE':
+            if response.status_code == 200:
+                json_content = json.loads(response.content)
+
+                # Check for 200 response from RapidAPI server
+                if json_content['status'] == 200:
+                    return True
+
+        if self.api == 'RAPIDAPI_SOLD':
+            return True
+
+        return False
+
+    def get_housing_total(self, json_content):
+        """
+
+        :param json_content:
+        :return:
+        """
+        data = config.get(self.api, 'rapidapi_json_lvl1')
+        total = config.get(self.api, 'rapidapi_json_lvl2')
+        return json_content[data][total]
+
+    def define_chunks(self, total):
         """
         Function to define the offset to collect total number of listings in CITY, STATE from Realtor.com via Rapid API
         :param total: Total number of listings
-        :param chunk: Offset to collect on, RAPIDAPI can return up to RAPIDAPI_OFFSET each call
         :return: list of offsets needed to collect entire dataset
         """
+
+        chunk = int(config.get(self.api, 'rapidapi_offset'))
 
         list_chunk_sizes = []
         for x in range(1, math.ceil(total / chunk)):
@@ -160,10 +182,16 @@ class RealEstateData:
         """
 
         df_results = None
+        list_results_dfs = None
 
-        if self._jsonREData != -1:
+        if self._jsonREData is not None:
 
-            list_results_dfs = [pd.json_normalize(result['data']['results']) for result in self._jsonREData]
+            if self.api == 'RAPIDAPI_SALE':
+
+                list_results_dfs = [pd.json_normalize(result['data']['results']) for result in self._jsonREData]
+
+            if self.api == 'RAPIDAPI_SOLD':
+                list_results_dfs = [pd.json_normalize(result['properties']) for result in self._jsonREData]
 
             df_results = pd.concat(list_results_dfs, ignore_index=True)
 
