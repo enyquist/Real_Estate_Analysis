@@ -142,7 +142,7 @@ class RealEstateData:
                 json_content = json.loads(response.content)
 
                 # Check for 200 response from RapidAPI server
-                if json_content['status'] == 200:
+                if json_content['status'] == 200 and json_content['data']['total'] is not None:
                     return True
 
         if self.api == 'RAPIDAPI_SOLD':

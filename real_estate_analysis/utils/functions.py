@@ -18,7 +18,12 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error
+from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
+
+import xgboost as xgb
+from bayes_opt import BayesianOptimization
 
 from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
@@ -100,63 +105,68 @@ def prepare_my_data(my_df):
     my_df = my_df.reset_index(drop=True)
 
     # split into features and targets elements
-    X, y = my_df.drop(['list_price', 'location.address.state_code'], axis=1), my_df[['list_price']]
+    X, y = my_df.drop(['list_price', 'location.address.state_code', 'tags'], axis=1), my_df[['list_price']]
 
-    # Collect all Tags
-    list_tags = []
+    # Collect corpus
+    list_corpus = []
 
     for _, row in my_df.iterrows():
-        row = row.tags.strip("'][' '").split("', '")
-        for tag in row:
-            if tag not in list_tags:
-                list_tags.append(tag)
+        row = ' '.join(row.tags.strip("'][' '").split("', '"))
+        list_corpus.append(row)
 
-    # Create template columns for tags
-    df_zeros = pd.DataFrame(data=np.zeros(shape=(len(X), len(list_tags)), dtype=np.int8), columns=list_tags)
+    # Vectorize Corpus
+    vectorizer = TfidfVectorizer()
+    tfidf_tags = vectorizer.fit_transform(list_corpus)
 
-    # Concat tags template to X
-    X_with_zeros = pd.concat([X, df_zeros], axis=1)
+    # Back to DataFrame
+    df_tfidf_encoding = pd.DataFrame(data=tfidf_tags.toarray(), columns=vectorizer.get_feature_names())
 
-    # Encode tags in X
-    for idx, row in X.iterrows():
-        row = row.tags.strip("'][' '").split("', '")
-        if idx % 1000 == 0:
-            print(f'Encoding {idx / len(X) * 100:.3f}% complete')
-        for tag in row:
-            X_with_zeros.loc[idx, tag] = 1
+    # Concat vectorization to X
+    X_with_encoding = pd.concat([X, df_tfidf_encoding], axis=1)
 
     # Split data, stratifying by state
-    X_train, X_test, y_train, y_test = train_test_split(X_with_zeros,
+    X_train, X_test, y_train, y_test = train_test_split(X_with_encoding,
                                                         y,
                                                         test_size=0.2,
                                                         random_state=42,
                                                         stratify=my_df['location.address.state_code'])
 
-    # Combine split data into train and test sets  todo problem to scale target values?
-    df_train = pd.concat([X_train, y_train], axis=1)
-    df_test = pd.concat([X_test, y_test], axis=1)
-
-    # Drop tags, specifically to later use columns
-    df_train_no_tags = df_train.drop(['tags'], axis=1)
-    df_test_no_tags = df_test.drop(['tags'], axis=1)
+    # Break out tfidf vectorization, don't want to scale it
+    X_train_no_encoding = X_train[X.columns]
+    X_train_encoding = X_train[df_tfidf_encoding.columns]
+    X_test_no_encoding = X_test[X.columns]
+    X_test_encoding = X_test[df_tfidf_encoding.columns]
 
     # Impute missing values
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
-    train_imp = imp.fit_transform(df_train_no_tags)
-    test_imp = imp.transform(df_test_no_tags)
+    train_imp = imp.fit_transform(X_train_no_encoding)
+    test_imp = imp.transform(X_test_no_encoding)
+
+    # Outlier Detection and remove outliers
+    clf = IsolationForest(random_state=42).fit_predict(train_imp)
+    mask = np.where(clf == -1)
+    train_no_outlier = np.delete(train_imp, mask, axis=0)
+    y_train_series = np.delete(y_train.values, mask, axis=0)
+    X_train_encoding_series = np.delete(X_train_encoding.values, mask, axis=0)
 
     # Scale train and test set
     scaler = StandardScaler()
-    train_scale = scaler.fit_transform(train_imp)
+    train_scale = scaler.fit_transform(train_no_outlier)
     test_scale = scaler.transform(test_imp)
 
-    # Outlier Detection and remove outliers
-    clf = IsolationForest(random_state=42).fit_predict(train_scale)
-    mask = np.where(clf == -1)
-    train_no_outlier = np.delete(train_scale, mask, axis=0)
+    # Back to DataFrame
+    df_train_inter = pd.DataFrame(data=train_scale, columns=X_train_no_encoding.columns)
+    df_test_inter = pd.DataFrame(data=test_scale, columns=X_train_no_encoding.columns)
+    y_train_inter = pd.DataFrame(data=y_train_series, columns=y_train.columns)
+    X_train_encoding = pd.DataFrame(data=X_train_encoding_series, columns=X_train_encoding.columns)
 
-    df_train_final = pd.DataFrame(data=train_no_outlier, columns=df_train_no_tags.columns)
-    df_test_final = pd.DataFrame(data=test_scale, columns=df_test_no_tags.columns)
+    # Reset indicies
+    y_test = y_test.reset_index(drop=True)
+    X_test_encoding = X_test_encoding.reset_index(drop=True)
+
+    # Concat prices back to DataFrame
+    df_train_final = pd.concat([df_train_inter, X_train_encoding, y_train_inter], axis=1)
+    df_test_final = pd.concat([df_test_inter, X_test_encoding, y_test], axis=1)
 
     return df_train_final, df_test_final
 
@@ -247,7 +257,7 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
                                 n_iter=search,
                                 cv=5,
                                 n_jobs=n_jobs,
-                                verbose=1)
+                                verbose=3)
 
         cv.fit(x_train, y_train)
 
@@ -259,7 +269,7 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
                           param_grid=my_param_grid,
                           cv=5,
                           n_jobs=n_jobs,
-                          verbose=1)
+                          verbose=3)
 
         cv.fit(x_train, y_train)
 
@@ -277,7 +287,7 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
         cv = BayesSearchCV(estimator=my_pipeline,
                            search_spaces=my_param_grid,
                            n_iter=search,
-                           n_jobs=n_jobs,
+                           n_jobs=15,
                            cv=5)
 
         cv.fit(x_train, y_train, callback=DeltaXStopper(0.01))
@@ -297,12 +307,25 @@ def score_my_model(my_model, x_test, y_test):
     :return:
     """
 
-    scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
+    if isinstance(my_model, xgb.XGBRegressor):
+        scores = cross_val_score(my_model, x_test, y_test)
+    else:
+        scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
 
     # Score model
     model_score = my_model.score(x_test, y_test)
+    y_pred = my_model.predict(x_test)
+    mse = mean_squared_error(y_test, y_pred)
 
-    return [scores, scores.mean(), scores.std() * 2, model_score]
+    dict_scores = {
+        'cross_val_score': scores,
+        'mean_cross_val_score': scores.mean(),
+        'std_cross_val_score': scores.std() * 2,
+        'model_score': model_score,
+        'mse': mse
+    }
+
+    return dict_scores
 
 
 def pandas_to_s3(df, client, bucket, key):
@@ -539,27 +562,29 @@ def create_model(input_size=12, hidden_layers=3):
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense, Dropout
     from tensorflow.keras.optimizers import Adam, SGD
-    from tensorflow.keras import activations
+    from tensorflow.keras import activations, metrics
 
     # Create model
     model = Sequential()
 
     # Input Layer
     model.add(Dense(units=input_size, input_shape=(input_size,),
-                    kernel_initializer='normal', activation=activations.selu, name='Input_layer'))
+                    kernel_initializer='normal', activation=activations.relu, name='Input_layer'))
 
     # Hidden Layers
     for layer in range(1, hidden_layers + 1):
-        model.add(Dense(input_size, kernel_initializer='normal', activation=activations.selu, name=f'Hidden_{layer}'))
-        # model.add(Dropout(0.3, name=f'Dropout_{layer}'))
+        model.add(Dense(input_size, kernel_initializer='normal', activation=activations.relu, name=f'Hidden_{layer}'))
+
+    model.add(Dropout(0.05, name=f'Dropout_1'))
 
     # Output Layer
     model.add(Dense(units=1, kernel_initializer='normal', activation='linear', name='Output_layer'))
 
-    optimizer = SGD(lr=10e-6)
+    optimizer = Adam(lr=10e-6)
 
     # Compile model
-    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination])
+    model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[coeff_determination,
+                                                                           metrics.MeanSquaredError()])
 
     return model
 

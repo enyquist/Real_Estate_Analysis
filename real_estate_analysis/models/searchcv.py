@@ -1,6 +1,5 @@
 from catboost import CatBoostRegressor
 from sklearn.pipeline import Pipeline
-from xgboost import XGBRegressor
 
 import real_estate_analysis.utils.functions as func
 
@@ -18,8 +17,8 @@ def main():
 
     bucket = 're-formatted-data'
 
-    df_train = func.fetch_from_s3(bucket=bucket, key='train')
-    df_test = func.fetch_from_s3(bucket=bucket, key='test')
+    df_train = func.fetch_from_s3(bucket=bucket, key='train.tgz')
+    df_test = func.fetch_from_s3(bucket=bucket, key='test.tgz')
 
     # Split the data
     X_train, y_train = df_train.drop(['list_price'], axis=1).values, df_train['list_price'].values
@@ -45,13 +44,6 @@ def main():
             'regressor__loss_function': ['RMSE'],
             'regressor__od_pval': [10e-2],
             'regressor__logging_level': ['Silent']
-        },
-        {  # XGBoost
-            'regressor': [XGBRegressor()],
-            'regressor__n_estimators': [1000, 1500, 2500],
-            'regressor__max_depth': [4, 6, 8],
-            'regressor__learning_rate': [0.05, 0.1, 0.3],
-            'regressor__booster': ['gbtree']
         }
     ]
 
@@ -74,15 +66,16 @@ def main():
     # Validation
     ####################################################################################################################
 
-    list_scores = func.score_my_model(my_model=model, x_test=X_test, y_test=y_test)
+    dict_scores = func.score_my_model(my_model=model, x_test=X_test, y_test=y_test)
 
     logger.info('Results from Search:')
-    logger.info(f'Search best estimator: {model.best_estimator_}')
     logger.info(f'Search Best params: {model.best_params_}')
-    logger.info(f"Search Cross Validation Scores: {list_scores[0]}")
-    logger.info(f"Search Validation Score: %0.2f" % model.best_score_)
-    logger.info(f"Search accuracy on test data: %0.2f (+/- %0.2f)" % (list_scores[1], list_scores[2]))
-    logger.info(f"Search test score: %0.2f" % list_scores[3])
+    logger.info(f"Search Cross Validation Scores: {dict_scores['cross_val_score']}")
+    logger.info(f"Search Validation Score: {dict_scores['model_score']:0.2f}")
+    logger.info(f"Search accuracy on test data: {dict_scores['mean_cross_val_score']:0.2f}"
+                f" (+/- {dict_scores['std_cross_val_score']:0.2f})")
+    logger.info(f"Search test score: {dict_scores['model_score']:0.2f}")
+    logger.info(f"MSE: {dict_scores['mse']:0.2f}")
 
 
 if __name__ == '__main__':
@@ -92,28 +85,44 @@ if __name__ == '__main__':
 # s3 Data
 #######################################################################################################################
 
-# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Results from Search:
+# 2021-02-27 03:42:46,825:MainProcess:root:INFO:Results from Search:
 
-# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Search best estimator:
-# Pipeline(steps=[('feature_selection', 'passthrough'),
-#                 ('regressor',
-#                  <catboost.core.CatBoostRegressor object at 0x0000021601E61FC8>)])
+# 2021-02-27 03:42:46,840:MainProcess:root:INFO:Search best estimator: Pipeline(steps=[('regressor',
+#                  XGBRegressor(base_score=0.5, booster='gbtree',
+#                               colsample_bylevel=1, colsample_bynode=1,
+#                               colsample_bytree=1, gamma=0, gpu_id=-1,
+#                               importance_type='gain',
+#                               interaction_constraints='', learning_rate=0.05,
+#                               max_delta_step=0, max_depth=6, min_child_weight=1,
+#                               missing=nan, monotone_constraints='()',
+#                               n_estimators=3500, n_jobs=32, num_parallel_tree=1,
+#                               random_state=0, reg_alpha=0, reg_lambda=1,
+#                               scale_pos_weight=1, subsample=1,
+#                               tree_method='exact', validate_parameters=1,
+#                               verbosity=None))])
 
-# 2021-02-04 22:13:18,515:MainProcess:root:INFO:Search Best params:
-# {'feature_selection': 'passthrough',
-# 'regressor': <catboost.core.CatBoostRegressor object at 0x00000215EFD73448>,
-# 'regressor__depth': 8,
-# 'regressor__iterations': 1500,
-# 'regressor__learning_rate': 0.1,
-# 'regressor__logging_level': 'Silent',
-# 'regressor__loss_function': 'RMSE',
-# 'regressor__od_pval': 0.1}
+# 2021-02-27 03:42:46,841:MainProcess:root:INFO:Search Best params:
+# {'regressor': XGBRegressor(base_score=None, booster='gbtree', colsample_bylevel=None,
+#              colsample_bynode=None, colsample_bytree=None, gamma=None,
+#              gpu_id=None, importance_type='gain', interaction_constraints=None,
+#              learning_rate=0.05, max_delta_step=None, max_depth=6,
+#              min_child_weight=None, missing=nan, monotone_constraints=None,
+#              n_estimators=3500, n_jobs=None, num_parallel_tree=None,
+#              random_state=None, reg_alpha=None, reg_lambda=None,
+#              scale_pos_weight=None, subsample=None, tree_method=None,
+#              validate_parameters=None, verbosity=None),
+#              'regressor__booster': 'gbtree',
+#              'regressor__learning_rate': 0.05,
+#              'regressor__max_depth': 6,
+#              'regressor__n_estimators': 3500}
 
-# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search Cross Validation Scores:
-# [0.77533568 0.8059569  0.76499073 0.65052428 0.79152382]
+# 2021-02-27 03:42:46,842:MainProcess:root:INFO:Search Cross Validation Scores:
+# [0.75089114 0.54762574 0.72706152 0.46637741 0.6725924 ]
 
-# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search Validation Score: 0.78
+# 2021-02-27 03:42:46,842:MainProcess:root:INFO:Search Validation Score: 0.66
 
-# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search accuracy on test data: 0.76 (+/- 0.11)
+# 2021-02-27 03:42:46,842:MainProcess:root:INFO:Search accuracy on test data: 0.63 (+/- 0.22)
 
-# 2021-02-04 22:13:18,516:MainProcess:root:INFO:Search test score: 0.80
+# 2021-02-27 03:42:46,842:MainProcess:root:INFO:Search test score: 0.73
+
+# 2021-02-27 03:42:46,842:MainProcess:root:INFO:MSE: 780025278437.83

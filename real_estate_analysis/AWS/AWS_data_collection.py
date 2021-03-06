@@ -29,6 +29,9 @@ def main():
     # Load CSV
     df_city_log = pd.read_csv(LOG_FILEPATH, encoding='latin-1')
 
+    # Reset Index, in event a previous collection run resulted in deletions
+    df_city_log.reset_index(drop=True, inplace=True)
+
     # Select correct column
     date_column = config.get(API, 'rapidapi_date_modified')
 
@@ -67,7 +70,6 @@ def main():
             else:
                 logger.info(f"{str_filename} is not a valid city/state combination in Realtor.com's database")
                 df_city_log.drop(idx, inplace=True)
-                df_city_log.reset_index(drop=True, inplace=True)
                 df_city_log.to_csv(LOG_FILEPATH, index=False)
                 logger.info(f"{str_filename} has been deleted from city_log.csv")
 
