@@ -1,10 +1,9 @@
 import xgboost as xgb
-from bayes_opt import BayesianOptimization, SequentialDomainReductionTransformer
 
 import real_estate_analysis.utils.functions as func
 
 
-def main():
+def main(api):
     ####################################################################################################################
     # Config Log File
     ####################################################################################################################
@@ -16,10 +15,12 @@ def main():
     # Data
     ####################################################################################################################
 
+    schema = 'sale' if api == 'RAPIDAPI_SALE' else 'sold'
+
     bucket = 're-formatted-data'
 
-    df_train = func.fetch_from_s3(bucket=bucket, key='train.tgz')
-    df_test = func.fetch_from_s3(bucket=bucket, key='test.tgz')
+    df_train = func.fetch_from_s3(bucket=bucket, key=f'{schema}_train.tgz')
+    df_test = func.fetch_from_s3(bucket=bucket, key=f'{schema}_test.tgz')
 
     # Split the data
     X_train, y_train = df_train.drop(['list_price'], axis=1).values, df_train['list_price'].values
@@ -28,54 +29,6 @@ def main():
     # Format as DMatrices
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_test, label=y_test)
-
-    ####################################################################################################################
-    # Functions
-    ####################################################################################################################
-
-    def bo_tune_xgb(max_depth, min_child_weight, eta, subsample, colsample_bytree, gamma, lambda_, alpha):
-        """
-        Wrapper to apply Bayesian Optimization to tune an xgb model
-        :param max_depth: Maximum depth of a tree
-        :param min_child_weight: Minimum sum of instance weight (hessian) needed in a child.
-        :param eta: Step size shrinkage used in update to prevents overfitting.
-        :param subsample: Subsample ratio of the training instances
-        :param colsample_bytree: subsample ratio of columns when constructing each tree.
-        :param gamma: Minimum loss reduction required to make a further partition on a leaf node of the tree.
-        :param lambda_: L2 regularization term on weights.
-        :param alpha: L1 regularization term on weights.
-        :return:
-        """
-        params = {
-            'max_depth': int(max_depth),
-            'min_child_weight': min_child_weight,
-            'eta': eta,
-            'subsample': subsample,
-            'colsample_bytree': colsample_bytree,
-            'gamma': gamma,
-            'lambda': lambda_,
-            'alpha': alpha,
-            'objective': 'reg:squarederror',
-            'eval_metric': 'rmse',
-            'tree_method': 'gpu_hist',
-            'max_bin': 64,
-            'predictor': 'gpu_predictor',
-            'gpu_id': 0
-        }
-
-        cv_result = xgb.cv(
-            params=params,
-            dtrain=dtrain,
-            num_boost_round=NUM_BOOST_ROUND,
-            seed=42,
-            nfold=5,
-            metrics=['rmse'],
-            early_stopping_rounds=10
-        )
-
-        mse = cv_result['test-rmse-mean'].iloc[-1] ** 2
-
-        return -1.0 * mse
 
     ####################################################################################################################
     # Bayesian Optimization
@@ -94,21 +47,14 @@ def main():
         'alpha': (5, 10)
     }
 
-    xgb_bo = BayesianOptimization(
-        f=bo_tune_xgb,
-        pbounds=dict_params,
-        random_state=42,
-        bounds_transformer=SequentialDomainReductionTransformer()
-    )
-
     logger.info('Starting Bayesian Optimization')
 
-    xgb_bo.maximize(n_iter=45, init_points=15, acq='ei')
+    optimizer = func.optimize_xgb(dtrain=dtrain, pbounds=dict_params, n_iter=10, init_points=3)
 
     logger.info('Bayesian Optimization Complete')
 
     # Extract best params
-    best_params = xgb_bo.max['params']
+    best_params = optimizer.max['params']
     best_params['max_depth'] = int(best_params['max_depth'])
     best_params['lambda'] = best_params['lambda_']
     best_params.pop('lambda_')
@@ -148,40 +94,50 @@ def main():
     # Validation
     ####################################################################################################################
 
-    dict_scores = func.score_my_model(my_model=optimized_model, x_test=X_test, y_test=y_test)
-    r2_training = optimized_model.score(X_train, y_train)
+    dict_scores = func.score_my_model(my_model=optimized_model, x_train=X_train, y_train=y_train,
+                                      x_test=X_test, y_test=y_test)
 
     logger.info('Results from XGBoost Search:')
     logger.info(f'Best params: {best_params}')
-    logger.info(f"Cross Validation Scores: {dict_scores['cross_val_score']}")
-    logger.info(f"Validation Score: {r2_training:0.2f}")
-    logger.info(f"Accuracy on test data: {dict_scores['mean_cross_val_score']:0.2f}"
-                f" (+/- {dict_scores['std_cross_val_score']:0.2f})")
-    logger.info(f"Test score: {dict_scores['model_score']:0.2f}")
-    logger.info(f"MSE: {dict_scores['mse']:0.2f}")
+    logger.info(f"Training Cross Validation Scores: {dict_scores['train_cross_val_score']}")
+    logger.info(f"Accuracy on training data: {dict_scores['train_mean_cross_val_score']:0.2f}"
+                f" (+/- {dict_scores['train_std_cross_val_score']:0.2f})")
+    logger.info(f"Test Cross Validation Scores: {dict_scores['test_cross_val_score']}")
+    logger.info(f"Accuracy on test data: {dict_scores['test_mean_cross_val_score']:0.2f}"
+                f" (+/- {dict_scores['test_std_cross_val_score']:0.2f})")
+    logger.info(f"Test Explained Variance Score: {dict_scores['test_explained_variance_score']:0.2f}")
+    logger.info(f"Test Max Error: {dict_scores['test_max_error']:0.2f}")
+    logger.info(f"Test Mean Absolute Error: {dict_scores['test_mean_absolute_error']:0.2f}")
+    logger.info(f"Test Mean Squared Error: {dict_scores['test_mean_squared_error']:0.2f}")
+    logger.info(f"Test Median Absolute Error: {dict_scores['test_median_absolute_error']:0.2f}")
+    logger.info(f"Test R2 score: {dict_scores['test_r2']:0.2f}")
 
 
 if __name__ == '__main__':
-    main()
+    while True:
+        value_1 = input('Choose API: Enter 1 for RAPIDAPI_SALE, 0 for RAPIDAPI_SOLD:')
+        try:
+            value_1 = int(value_1)
+        except ValueError:
+            print('Please use numeric digits!')
+            continue
+        if value_1 not in [0, 1]:
+            print('Please enter 1 or 0!')
+            continue
+        break
+
+    API = 'RAPIDAPI_SALE' if value_1 == 1 else 'RAPIDAPI_SOLD'
+    print(f'Formatting data from {API} API')
+    main(API)
 
 #######################################################################################################################
 # s3 Data
 #######################################################################################################################
 
 # Results from XGBoost Search:
-
-# Best params:
-# {'alpha': 0.9505062430922577, 'colsample_bytree': 0.6419016010646321, 'eta': 0.03481878178114492,
-# 'gamma': 7.328545730764135, 'max_depth': 9, 'min_child_weight': 3.1410157573443875, 'subsample': 0.9309928333029542,
-# 'lambda': 1.7017024086650765, 'objective': 'reg:squarederror', 'eval_metric': 'rmse', 'tree_method': 'gpu_hist',
-# 'max_bin': 64, 'predictor': 'gpu_predictor', 'gpu_id': 0, 'n_estimators': 566}
-
-# Cross Validation Scores: [0.55291647 0.44046691 0.51831694 0.40844472 0.53878692]
-
+# Best params: {'alpha': 5.0, 'colsample_bytree': 0.859276613651707, 'eta': 0.08346818093108868, 'gamma': 5.0114858126921185, 'max_depth': 9, 'min_child_weight': 0.10351481390323147, 'subsample': 0.9075369208191467, 'lambda': 3.5330644157281985, 'objective': 'reg:squarederror', 'eval_metric': 'rmse', 'tree_method': 'gpu_hist', 'max_bin': 64, 'predictor': 'gpu_predictor', 'gpu_id': 0, 'n_estimators': 512}
+# Cross Validation Scores: [0.64225837 0.48563385 0.54254486 0.5737242  0.42669225]
 # Validation Score: 0.93
-
-# Accuracy on test data: 0.49 (+/- 0.11)
-
-# Test score: 0.40
-
-# MSE: 1695799635366.35
+# Accuracy on test data: 0.53 (+/- 0.15)
+# Test score: 0.44
+# MSE: 1040071490897.22

@@ -10,7 +10,8 @@ def main():
     # Config Log File
     ####################################################################################################################
 
-    logger = func.create_logger(e_handler_name='../logs/error_log.log', t_handler_name='../logs/training_log.log')
+    logger = func.create_logger(e_handler_name='../logs/catboost_error_log.log',
+                                t_handler_name='../logs/catboost_training_log.log')
 
     ####################################################################################################################
     # Data
@@ -29,14 +30,13 @@ def main():
     # Functions
     ####################################################################################################################
 
-    def bo_tune_catboost(learning_rate, l2_leaf_reg, bagging_temperature, depth, od_pval):
+    def bo_tune_catboost(learning_rate, l2_leaf_reg, bagging_temperature, depth):
         """
         Wrapper to apply Bayesian Optimization to tune an xgb model
         :param learning_rate: The maximum number of trees that can be built when solving machine learning problems.
         :param l2_leaf_reg: Coefficient at the L2 regularization term of the cost function.
         :param bagging_temperature: Defines the settings of the Bayesian bootstrap..
         :param depth: Depth of the tree.
-        :param od_pval: The threshold for the IncToDec overfitting detector type.
         :return:
         """
         params = {
@@ -49,7 +49,7 @@ def main():
             'bagging_temperature': bagging_temperature,
             'depth': int(depth),
             'early_stopping_rounds': 10,
-            'od_pval': od_pval,
+            'od_pval': 10e-2,
             'task_type': 'GPU'
         }
 
@@ -71,8 +71,7 @@ def main():
         'learning_rate': (1e-6, 0.2),
         'l2_leaf_reg': (2, 10),
         'bagging_temperature': (0.5, 1),
-        'depth': (3, 16),
-        'od_pval': (10e-10, 10e-2)
+        'depth': (3, 16)
     }
 
     xgb_bo = BayesianOptimization(
@@ -84,7 +83,7 @@ def main():
 
     logger.info('Starting Bayesian Optimization')
 
-    xgb_bo.maximize(n_iter=45, init_points=15, acq='ei')
+    xgb_bo.maximize(n_iter=35, init_points=5, acq='ei')
 
     logger.info('Bayesian Optimization Complete')
 
@@ -114,17 +113,23 @@ def main():
     # Validation
     ####################################################################################################################
 
-    dict_scores = func.score_my_model(my_model=model, x_test=X_test, y_test=y_test)
-    r2_training = model.score(X_train, y_train)
+    dict_scores = func.score_my_model(my_model=model, x_train=X_train, y_train=y_train, x_test=X_test, y_test=y_test)
 
     logger.info('Results from Search:')
     logger.info(f'Search Best params: {best_params}')
-    logger.info(f"Search Cross Validation Scores: {dict_scores['cross_val_score']}")
-    logger.info(f"Search Validation Score: {r2_training:0.2f}")
-    logger.info(f"Search accuracy on test data: {dict_scores['mean_cross_val_score']:0.2f}"
-                f" (+/- {dict_scores['std_cross_val_score']:0.2f})")
-    logger.info(f"Search test score: {dict_scores['model_score']:0.2f}")
-    logger.info(f"MSE: {dict_scores['mse']:0.2f}")
+    logger.info(f"Training Cross Validation Scores: {dict_scores['train_cross_val_score']}")
+    logger.info(f"Accuracy on training data: {dict_scores['train_mean_cross_val_score']:0.2f}"
+                f" (+/- {dict_scores['train_std_cross_val_score']:0.2f})")
+    logger.info(f"Test Cross Validation Scores: {dict_scores['test_cross_val_score']}")
+    logger.info(f"Accuracy on test data: {dict_scores['test_mean_cross_val_score']:0.2f}"
+                f" (+/- {dict_scores['test_std_cross_val_score']:0.2f})")
+    logger.info(f"Test Explained Variance Score: {dict_scores['test_explained_variance_score']:0.2f}")
+    logger.info(f"Test Max Error: {dict_scores['test_max_error']:0.2f}")
+    logger.info(f"Test Mean Absolute Error: {dict_scores['test_mean_absolute_error']:0.2f}")
+    logger.info(f"Test Mean Squared Error: {dict_scores['test_mean_squared_error']:0.2f}")
+    logger.info(f"Test Mean Squared Log Error: {dict_scores['test_mean_squared_log_error']:0.2f}")
+    logger.info(f"Test Median Absolute Error: {dict_scores['test_median_absolute_error']:0.2f}")
+    logger.info(f"Test R2 score: {dict_scores['test_r2']:0.2f}")
 
 
 if __name__ == '__main__':

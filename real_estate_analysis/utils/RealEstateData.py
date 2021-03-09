@@ -2,11 +2,12 @@ import os
 import json
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import math
 import configparser
 import logging
 import pickle
-import time
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -37,6 +38,7 @@ class RealEstateData:
         self.url = config.get(api, 'rapidapi_url')
         self._jsonREData = self.fetch_housing_data()
         self.results = self.parse()
+        self.requests_remaining = 99999
 
     def __repr__(self):
         return f"RealEstateData('{self.city, self.state}')"
@@ -64,7 +66,6 @@ class RealEstateData:
             list_offsets = self.define_chunks(total=housing_total)
 
             for offset in list_offsets:
-                time.sleep(0.2)
 
                 response = self.api_call(offset=offset)
 
@@ -106,8 +107,6 @@ class RealEstateData:
         :param offset:
         :return:
         """
-        response = None
-
         querystring = {"city": self.city,
                        "offset": offset,
                        "state_code": self.state,
@@ -119,15 +118,18 @@ class RealEstateData:
             'x-rapidapi-host': config.get(self.api, 'rapidapi_host')
         }
 
-        try:
-            response = requests.request("GET", self.url, headers=headers, params=querystring)
+        s = requests.Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
+        s.mount('https://', HTTPAdapter(max_retries=retries))
 
-        except requests.exceptions.Timeout:
-            # todo Maybe set up for a retry, or continue in a retry loop
-            pass
+        response = s.get(self.url, headers=headers, params=querystring)
 
-        except requests.exceptions.RequestException as e:  # catastrophic error
-            raise SystemExit(e)
+        config.set(self.api, 'rapidapi_api_call_limit', response.headers['X-RateLimit-Requests-Remaining'])
+
+        with open('../config.ini', 'w') as configfile:
+            config.write(configfile)
+
+        self.requests_remaining = int(response.headers['X-RateLimit-Requests-Remaining'])
 
         return response
 
@@ -138,15 +140,18 @@ class RealEstateData:
         :return: True if response contained data, False otherwise
         """
         if self.api == 'RAPIDAPI_SALE':
-            if response.status_code == 200:
-                json_content = json.loads(response.content)
+            json_content = json.loads(response.content)
 
-                # Check for 200 response from RapidAPI server
-                if json_content['status'] == 200 and json_content['data']['total'] is not None:
-                    return True
+            # Check for 200 response from RapidAPI server
+            if json_content['status'] == 200 and json_content['data']['total'] is not None:
+                return True
 
         if self.api == 'RAPIDAPI_SOLD':
-            return True
+            json_content = json.loads(response.content)
+
+            # Check for content
+            if json_content['returned_rows'] > 0:
+                return True
 
         return False
 

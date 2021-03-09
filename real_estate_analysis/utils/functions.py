@@ -18,12 +18,11 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error
+from sklearn import metrics
 from sklearn.feature_extraction.text import TfidfVectorizer
-import spacy
 
 import xgboost as xgb
-from bayes_opt import BayesianOptimization
+from bayes_opt import BayesianOptimization, SequentialDomainReductionTransformer
 
 from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
@@ -32,6 +31,8 @@ from catboost import CatBoostRegressor
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
+
+logger = logging.getLogger(__name__)
 
 
 def prep_gpu(gb=3):
@@ -86,68 +87,82 @@ def create_logger(e_handler_name, t_handler_name):
     return logger
 
 
-def prepare_my_data(my_df):
+def prepare_my_data(my_df, data='sale'):
     """
 
     :param my_df:
+    :param data:
     :return:
     """
+    while True:
+        if data.lower() not in ['sale', 'sold']:
+            logger.error("parameter 'data' must be equal to 'sale' or 'sold'")
+            return
+        break
+
+    if data == 'sale':
+        na_subset = ['list_price', 'location.address.coordinate.lon', 'location.address.coordinate.lat',
+                     'tags', 'location.address.state_code']
+        drop_subset = ['list_price', 'location.address.state_code', 'tags']
+        price_subset = ['list_price']
+        state_subset = 'location.address.state_code'
+
+    else:
+        na_subset = ['price', 'address.lon', 'address.lat', 'address.state_code']
+        drop_subset = ['price', 'address.state_code']
+        price_subset = ['price']
+        state_subset = 'address.state_code'
+
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
     my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
 
     # Drop entries that have no list_price, lat / long, tags, or associated city
-    my_df = my_df.dropna(axis=0, subset=['list_price',
-                                         'location.address.coordinate.lon',
-                                         'location.address.coordinate.lat',
-                                         'tags',
-                                         'location.address.state_code'])
+    my_df = my_df.dropna(axis=0, subset=na_subset)
 
     my_df = my_df.reset_index(drop=True)
 
-    # split into features and targets elements
-    X, y = my_df.drop(['list_price', 'location.address.state_code', 'tags'], axis=1), my_df[['list_price']]
+    # split into features and targets elements, taking logarithm of targets
+    X, y = my_df.drop(drop_subset, axis=1), np.log1p(my_df[price_subset])
 
-    # Collect corpus
-    list_corpus = []
+    if data == 'sale':
 
-    for _, row in my_df.iterrows():
-        row = ' '.join(row.tags.strip("'][' '").split("', '"))
-        list_corpus.append(row)
+        # Collect corpus
+        list_corpus = []
 
-    # Vectorize Corpus
-    vectorizer = TfidfVectorizer()
-    tfidf_tags = vectorizer.fit_transform(list_corpus)
+        for _, row in my_df.iterrows():
+            row = ' '.join(row.tags.strip("'][' '").split("', '"))
+            list_corpus.append(row)
 
-    # Back to DataFrame
-    df_tfidf_encoding = pd.DataFrame(data=tfidf_tags.toarray(), columns=vectorizer.get_feature_names())
+        # Vectorize Corpus
+        vectorizer = TfidfVectorizer()
+        tfidf_tags = vectorizer.fit_transform(list_corpus)
 
-    # Concat vectorization to X
-    X_with_encoding = pd.concat([X, df_tfidf_encoding], axis=1)
+        # Back to DataFrame
+        df_tfidf_encoding = pd.DataFrame(data=tfidf_tags.toarray(), columns=vectorizer.get_feature_names())
+
+        # Concat vectorization to X
+        X = pd.concat([X, df_tfidf_encoding], axis=1)
 
     # Split data, stratifying by state
-    X_train, X_test, y_train, y_test = train_test_split(X_with_encoding,
-                                                        y,
-                                                        test_size=0.2,
-                                                        random_state=42,
-                                                        stratify=my_df['location.address.state_code'])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42,
+                                                        stratify=my_df[state_subset])
 
-    # Break out tfidf vectorization, don't want to scale it
-    X_train_no_encoding = X_train[X.columns]
-    X_train_encoding = X_train[df_tfidf_encoding.columns]
-    X_test_no_encoding = X_test[X.columns]
-    X_test_encoding = X_test[df_tfidf_encoding.columns]
+    # # Break out tfidf vectorization, don't want to scale it
+    # X_train_no_encoding = X_train[X.columns]
+    # X_train_encoding = X_train[df_tfidf_encoding.columns]
+    # X_test_no_encoding = X_test[X.columns]
+    # X_test_encoding = X_test[df_tfidf_encoding.columns]
 
     # Impute missing values
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
-    train_imp = imp.fit_transform(X_train_no_encoding)
-    test_imp = imp.transform(X_test_no_encoding)
+    train_imp = imp.fit_transform(X_train)
+    test_imp = imp.transform(X_test)
 
     # Outlier Detection and remove outliers
     clf = IsolationForest(random_state=42).fit_predict(train_imp)
     mask = np.where(clf == -1)
     train_no_outlier = np.delete(train_imp, mask, axis=0)
     y_train_series = np.delete(y_train.values, mask, axis=0)
-    X_train_encoding_series = np.delete(X_train_encoding.values, mask, axis=0)
 
     # Scale train and test set
     scaler = StandardScaler()
@@ -155,84 +170,77 @@ def prepare_my_data(my_df):
     test_scale = scaler.transform(test_imp)
 
     # Back to DataFrame
-    df_train_inter = pd.DataFrame(data=train_scale, columns=X_train_no_encoding.columns)
-    df_test_inter = pd.DataFrame(data=test_scale, columns=X_train_no_encoding.columns)
+    df_train_inter = pd.DataFrame(data=train_scale, columns=X_train.columns)
+    df_test_inter = pd.DataFrame(data=test_scale, columns=X_test.columns)
     y_train_inter = pd.DataFrame(data=y_train_series, columns=y_train.columns)
-    X_train_encoding = pd.DataFrame(data=X_train_encoding_series, columns=X_train_encoding.columns)
 
     # Reset indicies
     y_test = y_test.reset_index(drop=True)
-    X_test_encoding = X_test_encoding.reset_index(drop=True)
 
     # Concat prices back to DataFrame
-    df_train_final = pd.concat([df_train_inter, X_train_encoding, y_train_inter], axis=1)
-    df_test_final = pd.concat([df_test_inter, X_test_encoding, y_test], axis=1)
+    df_train_final = pd.concat([df_train_inter, y_train_inter], axis=1)
+    df_test_final = pd.concat([df_test_inter, y_test], axis=1)
 
     return df_train_final, df_test_final
 
 
-def prepare_my_data2(my_df, deep_learning=False):
+def prepare_my_data_sold(my_df):
     """
     Wrapper to clean and prepare data for downstream tasks
     :param my_df: DataFrame of features
-    :param deep_learning: Switch if to use deep learning, adds NLP processing to data
     :return: Split Dataset into a train/test split without outliers
     """
-
-    # Imputer Instance
-    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
 
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
     my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
 
     # Drop entries that have no list_price, lat / long, tags, or associated city
-    my_df = my_df.dropna(axis=0, subset=['list_price',
-                                         'location.address.coordinate.lon',
-                                         'location.address.coordinate.lat',
-                                         'tags',
-                                         'location.address.state_code'])
+    my_df = my_df.dropna(axis=0, subset=['price',
+                                         'address.lon',
+                                         'address.lat',
+                                         'address.state_code'])
 
-    # split into features and targets elements
-    X, y = my_df.drop(['list_price', 'tags', 'location.address.state_code'], axis=1).values, my_df['list_price'].values
+    my_df = my_df.reset_index(drop=True)
 
-    # Impute features
-    X = imp.fit_transform(X)
+    # split into features and targets elements, taking logarithm of targets
+    X, y = my_df.drop(['price', 'address.state_code'], axis=1), np.log1p(my_df[['price']])
 
-    scaler = StandardScaler()  # Selected as it was most often the scaler used during searchcv.py
-
-    X = scaler.fit_transform(X)
-
-    # Outlier Detection
-    clf = IsolationForest(random_state=42).fit_predict(X)
-
-    # Mask outliers
-    mask = np.where(clf == -1)
-
-    if deep_learning:
-        # Load SpaCy model
-        nlp = spacy.load('en_core_web_lg', disable=['tagger', 'parser'])
-
-        # Collect SpaCy vectors
-        list_vectors = []
-
-        for idx, row in my_df.iterrows():
-            row = ' '.join(row.tags.strip("'][' '").split("', '"))
-            list_vectors.append(nlp(row).vector)
-
-        vectors = np.stack(list_vectors, axis=0)
-
-        # Concatenate vectors back to X as a part of feature engineering
-        X = np.concatenate([X, vectors], axis=1)
-
-    # Split data using outlier-free data
-    X_train, X_test, y_train, y_test = train_test_split(np.delete(X, mask, axis=0),
-                                                        np.delete(y, mask),
+    # Split data, stratifying by state
+    X_train, X_test, y_train, y_test = train_test_split(X,
+                                                        y,
                                                         test_size=0.2,
                                                         random_state=42,
-                                                        stratify=np.delete(my_df['location.address.state_code'].values,
-                                                                           mask))
+                                                        stratify=my_df['address.state_code'])
 
-    return X_train, X_test, y_train, y_test
+    # Impute missing values
+    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+    train_imp = imp.fit_transform(X_train)
+    test_imp = imp.transform(X_test)
+
+    # Outlier Detection and remove outliers
+    clf = IsolationForest(random_state=42).fit_predict(train_imp)
+    mask = np.where(clf == -1)
+    train_no_outlier = np.delete(train_imp, mask, axis=0)
+    y_train_series = np.delete(y_train.values, mask, axis=0)
+
+    # Scale train and test set
+    scaler = StandardScaler()
+    train_scale = scaler.fit_transform(train_no_outlier)
+    test_scale = scaler.transform(test_imp)
+
+    # Back to DataFrame
+    df_train_inter = pd.DataFrame(data=train_scale, columns=X.columns)
+    df_test_inter = pd.DataFrame(data=test_scale, columns=X.columns)
+    y_train_inter = pd.DataFrame(data=y_train_series, columns=y_train.columns)
+
+    # Reset indicies
+    y_test = y_test.reset_index(drop=True)
+
+    # Concat prices back to DataFrame
+    df_train_final = pd.concat([df_train_inter, y_train_inter], axis=1)
+    df_test_final = pd.concat([df_test_inter, y_test], axis=1)
+
+    return df_train_final, df_test_final
 
 
 def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, style='random', filename='searchcv',
@@ -298,31 +306,46 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
         return -1
 
 
-def score_my_model(my_model, x_test, y_test):
+def score_my_model(my_model, x_train, y_train, x_test, y_test):
     """
     Wrapper to score a model
+    :param x_train: Features train set
+    :param y_train: Target train set
     :param x_test: Features test set
     :param y_test: Target test set
     :param my_model: an instance of an sklearn RandomizedSearchCV model. Must have a .best_estimator_ method implemented
     :return:
     """
 
-    if isinstance(my_model, xgb.XGBRegressor):
-        scores = cross_val_score(my_model, x_test, y_test)
+    if isinstance(my_model, xgb.XGBRegressor) or isinstance(my_model, CatBoostRegressor):
+        test_scores = cross_val_score(my_model, x_test, y_test)
+        train_scores = cross_val_score(my_model, x_train, y_train)
     else:
-        scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
+        test_scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
+        train_scores = cross_val_score(my_model.best_estimator_, x_train, y_train)
 
-    # Score model
-    model_score = my_model.score(x_test, y_test)
+    # Score model on Test Data
     y_pred = my_model.predict(x_test)
-    mse = mean_squared_error(y_test, y_pred)
+    test_mse = metrics.mean_squared_error(y_test, y_pred)
+    test_mae = metrics.mean_absolute_error(y_test, y_pred)
+    test_evs = metrics.explained_variance_score(y_test, y_pred)
+    test_mdae = metrics.median_absolute_error(y_test, y_pred)
+    test_r2 = metrics.r2_score(y_test, y_pred)
+    test_max_error = metrics.max_error(y_test, y_pred)
 
     dict_scores = {
-        'cross_val_score': scores,
-        'mean_cross_val_score': scores.mean(),
-        'std_cross_val_score': scores.std() * 2,
-        'model_score': model_score,
-        'mse': mse
+        'test_cross_val_score': test_scores,
+        'test_mean_cross_val_score': test_scores.mean(),
+        'test_std_cross_val_score': test_scores.std() * 2,
+        'train_cross_val_score': train_scores,
+        'train_mean_cross_val_score': train_scores.mean(),
+        'train_std_cross_val_score': train_scores.std() * 2,
+        'test_r2': test_r2,
+        'test_mean_squared_error': test_mse,
+        'test_mean_absolute_error': test_mae,
+        'test_explained_variance_score': test_evs,
+        'test_median_absolute_error': test_mdae,
+        'test_max_error': test_max_error,
     }
 
     return dict_scores
@@ -601,3 +624,85 @@ def coeff_determination(y_true, y_pred):
     SS_res = K.sum(K.square(y_true - y_pred))
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res / (SS_tot + K.epsilon())
+
+
+def xgb_cv(max_depth, min_child_weight, eta, subsample, colsample_bytree, gamma, lambda_, alpha, dtrain):
+    """
+    Function to perform cross validation of an XGBoost model
+    :param max_depth: Maximum depth of a tree
+    :param min_child_weight: Minimum sum of instance weight (hessian) needed in a child
+    :param eta: Step size shrinkage used in update to prevents overfitting
+    :param subsample: Subsample ratio of the training instances
+    :param colsample_bytree: subsample ratio of columns when constructing each tree
+    :param gamma: Minimum loss reduction required to make a further partition on a leaf node of the tree
+    :param lambda_: L2 regularization term on weights
+    :param alpha: L1 regularization term on weights
+    :param dtrain: Training matrix of type xgb.DMatrix
+    :return: Mean Squared Error of XGBoost CV
+    """
+    params = {
+        'max_depth': int(max_depth),
+        'eta': eta,
+        'verbosity': 2,
+        'objective': 'reg:squarederror',
+        'booster': 'gbtree',
+        'tree_method': 'gpu_hist',
+        'gamma': gamma,
+        'min_child_weight': min_child_weight,
+        'subsample': subsample,
+        'colsample_bytree': colsample_bytree,
+        'reg_alpha': alpha,
+        'reg_lambda': lambda_,
+        'random_state': 42
+    }
+
+    cv_result = xgb.cv(
+        params=params,
+        dtrain=dtrain,
+        num_boost_round=999,
+        seed=42,
+        nfold=5,
+        metrics=['rmse', 'mae'],
+        early_stopping_rounds=10
+    )
+
+    mse = cv_result['test-rmse-mean'].iloc[-1] ** 2
+
+    return -1 * mse
+
+
+def optimize_xgb(dtrain, pbounds, n_iter, init_points):
+    """
+    Performs Bayesian Optimization of an XGBoost Model
+    :param dtrain: Training matrix of type xgb.DMatrix
+    :param pbounds: Parameter Bounds for Optimization
+    :param n_iter: Number of exploitation iterations
+    :param init_points: Number of initialization points, to explore the Gaussian Process
+    :return: Bayesian Optimized Object
+    """
+    def xgb_crossval(max_depth, min_child_weight, eta, subsample, colsample_bytree, gamma, lambda_, alpha):
+        """
+        Wrapper for xgb_cv
+        :param max_depth: Maximum depth of a tree
+        :param min_child_weight: Minimum sum of instance weight (hessian) needed in a child
+        :param eta: Step size shrinkage used in update to prevents overfitting
+        :param subsample: Subsample ratio of the training instances
+        :param colsample_bytree: subsample ratio of columns when constructing each tree
+        :param gamma: Minimum loss reduction required to make a further partition on a leaf node of the tree
+        :param lambda_: L2 regularization term on weights
+        :param alpha: L1 regularization term on weights
+        :return: Mean Squared Error of XGBoost CV
+        """
+        return xgb_cv(max_depth, min_child_weight, eta, subsample, colsample_bytree, gamma, lambda_, alpha, dtrain)
+
+    optimizer = BayesianOptimization(
+        f=xgb_crossval,
+        pbounds=pbounds,
+        bounds_transformer=SequentialDomainReductionTransformer(),
+        random_state=42,
+        verbose=2
+    )
+
+    optimizer.maximize(n_iter=n_iter, init_points=init_points, acq='ei')
+
+    return optimizer
