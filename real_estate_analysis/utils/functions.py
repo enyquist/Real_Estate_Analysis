@@ -8,10 +8,9 @@ import itertools
 import configparser
 import joblib
 import os
-
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score, cross_validate
-from sklearn.ensemble import RandomForestRegressor, VotingRegressor, IsolationForest
-from sklearn.linear_model import LinearRegression, ElasticNet
+from sklearn import model_selection
+from sklearn import ensemble
+from sklearn import linear_model
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -22,13 +21,10 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn import metrics
 from sklearn.feature_extraction.text import TfidfVectorizer
-
 import xgboost as xgb
 from bayes_opt import BayesianOptimization, SequentialDomainReductionTransformer
-
 from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
-
 from catboost import CatBoostRegressor
 
 from real_estate_analysis.utils.Model import ModelObject
@@ -158,8 +154,8 @@ def prepare_my_data(my_df, data='sale'):
         X = pd.concat([X, df_tfidf_encoding], axis=1)
 
     # Split data, stratifying by state
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42,
-                                                        stratify=my_df[state])
+    X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, random_state=42,
+                                                                        stratify=my_df[state])
 
     # Impute missing values
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
@@ -167,7 +163,7 @@ def prepare_my_data(my_df, data='sale'):
     test_imp = imp.transform(X_test)
 
     # Outlier Detection and remove outliers
-    clf = IsolationForest(random_state=42).fit_predict(train_imp)
+    clf = ensemble.IsolationForest(random_state=42).fit_predict(train_imp)
     mask = np.where(clf == -1)
     train_no_outlier = np.delete(train_imp, mask, axis=0)
     y_train_series = np.delete(y_train.values, mask, axis=0)
@@ -180,65 +176,6 @@ def prepare_my_data(my_df, data='sale'):
     # Back to DataFrame
     df_train_inter = pd.DataFrame(data=train_scale, columns=X_train.columns)
     df_test_inter = pd.DataFrame(data=test_scale, columns=X_test.columns)
-    y_train_inter = pd.DataFrame(data=y_train_series, columns=y_train.columns)
-
-    # Reset indicies
-    y_test = y_test.reset_index(drop=True)
-
-    # Concat prices back to DataFrame
-    df_train_final = pd.concat([df_train_inter, y_train_inter], axis=1)
-    df_test_final = pd.concat([df_test_inter, y_test], axis=1)
-
-    return df_train_final, df_test_final
-
-
-def prepare_my_data_sold(my_df):
-    """
-    Wrapper to clean and prepare data for downstream tasks
-    :param my_df: DataFrame of features
-    :return: Split Dataset into a train/test split without outliers
-    """
-
-    # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
-    my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
-
-    # Drop entries that have no list_price, lat / long, tags, or associated city
-    my_df = my_df.dropna(axis=0, subset=['price',
-                                         'address.lon',
-                                         'address.lat',
-                                         'address.state_code'])
-
-    my_df = my_df.reset_index(drop=True)
-
-    # split into features and targets elements, taking logarithm of targets
-    X, y = my_df.drop(['price', 'address.state_code'], axis=1), np.log1p(my_df[['price']])
-
-    # Split data, stratifying by state
-    X_train, X_test, y_train, y_test = train_test_split(X,
-                                                        y,
-                                                        test_size=0.2,
-                                                        random_state=42,
-                                                        stratify=my_df['address.state_code'])
-
-    # Impute missing values
-    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
-    train_imp = imp.fit_transform(X_train)
-    test_imp = imp.transform(X_test)
-
-    # Outlier Detection and remove outliers
-    clf = IsolationForest(random_state=42).fit_predict(train_imp)
-    mask = np.where(clf == -1)
-    train_no_outlier = np.delete(train_imp, mask, axis=0)
-    y_train_series = np.delete(y_train.values, mask, axis=0)
-
-    # Scale train and test set
-    scaler = StandardScaler()
-    train_scale = scaler.fit_transform(train_no_outlier)
-    test_scale = scaler.transform(test_imp)
-
-    # Back to DataFrame
-    df_train_inter = pd.DataFrame(data=train_scale, columns=X.columns)
-    df_test_inter = pd.DataFrame(data=test_scale, columns=X.columns)
     y_train_inter = pd.DataFrame(data=y_train_series, columns=y_train.columns)
 
     # Reset indicies
@@ -268,12 +205,12 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
 
     if style == 'random':
         # Create RandomizedSearchCV instance
-        cv = RandomizedSearchCV(estimator=my_pipeline,
-                                param_distributions=my_param_grid,
-                                n_iter=search,
-                                cv=5,
-                                n_jobs=n_jobs,
-                                verbose=3)
+        cv = model_selection.RandomizedSearchCV(estimator=my_pipeline,
+                                                param_distributions=my_param_grid,
+                                                n_iter=search,
+                                                cv=5,
+                                                n_jobs=n_jobs,
+                                                verbose=3)
 
         cv.fit(x_train, y_train)
 
@@ -281,11 +218,11 @@ def train_my_model(my_pipeline, my_param_grid, x_train, y_train, search=50, styl
 
     if style == 'grid':
         # Create RandomizedSearchCV instance
-        cv = GridSearchCV(estimator=my_pipeline,
-                          param_grid=my_param_grid,
-                          cv=5,
-                          n_jobs=n_jobs,
-                          verbose=3)
+        cv = model_selection.GridSearchCV(estimator=my_pipeline,
+                                          param_grid=my_param_grid,
+                                          cv=5,
+                                          n_jobs=n_jobs,
+                                          verbose=3)
 
         cv.fit(x_train, y_train)
 
@@ -326,11 +263,11 @@ def score_my_model(my_model, x_train, y_train, x_test, y_test):
     """
 
     if isinstance(my_model, xgb.XGBRegressor) or isinstance(my_model, CatBoostRegressor):
-        test_scores = cross_val_score(my_model, x_test, y_test)
-        train_scores = cross_val_score(my_model, x_train, y_train)
+        test_scores = model_selection.cross_val_score(my_model, x_test, y_test)
+        train_scores = model_selection.cross_val_score(my_model, x_train, y_train)
     else:
-        test_scores = cross_val_score(my_model.best_estimator_, x_test, y_test)
-        train_scores = cross_val_score(my_model.best_estimator_, x_train, y_train)
+        test_scores = model_selection.cross_val_score(my_model.best_estimator_, x_test, y_test)
+        train_scores = model_selection.cross_val_score(my_model.best_estimator_, x_train, y_train)
 
     # Score model on Test Data
     y_pred = my_model.predict(x_test)
@@ -521,7 +458,7 @@ def create_best_models(results_path):
                                       loss_function='RMSE'),
 
         # RandomForest is default in searchcv.py
-        'RandomForest': RandomForestRegressor(),
+        'RandomForest': model_selection.RandomForestRegressor(),
 
         'KNeighbors': KNeighborsRegressor(n_neighbors=int(dict_best_models['KNeighbors'].param_regressor__n_neighbors),
                                           weights=dict_best_models['KNeighbors'].param_regressor__weights),
@@ -529,11 +466,11 @@ def create_best_models(results_path):
         # DecisionTree is default in searchcv.py
         'DecisionTree': DecisionTreeRegressor(),
 
-        'ElasticNet': ElasticNet(alpha=dict_best_models['ElasticNet'].param_regressor__alpha,
-                                 l1_ratio=dict_best_models['ElasticNet'].param_regressor__l1_ratio),
+        'ElasticNet': linear_model.ElasticNet(alpha=dict_best_models['ElasticNet'].param_regressor__alpha,
+                                              l1_ratio=dict_best_models['ElasticNet'].param_regressor__l1_ratio),
 
         # LinearRegression is default in searchcv.py
-        'LinearRegression': LinearRegression(),
+        'LinearRegression': linear_model.LinearRegression(),
 
         'SVR': SVR(kernel=dict_best_models['SVR'].param_regressor__kernel,
                    C=dict_best_models['SVR'].param_regressor__C),
@@ -575,7 +512,7 @@ def create_model_combinations(dict_input):
         list_model_format = []
         for model in combo:
             list_model_format.append((f'{model}', dict_input[model]))
-        list_voting_regressors.append(VotingRegressor(list_model_format))
+        list_voting_regressors.append(model_selection.VotingRegressor(list_model_format))
 
     return list_voting_regressors
 
@@ -589,7 +526,7 @@ def create_model(input_size=12, hidden_layers=3):
     """
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense, Dropout
-    from tensorflow.keras.optimizers import Adam, SGD
+    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras import activations, metrics
 
     # Create model
@@ -685,6 +622,7 @@ def optimize_xgb(dtrain, pbounds, n_iter, init_points):
     :param init_points: Number of initialization points, to explore the Gaussian Process
     :return: Bayesian Optimized Object
     """
+
     def xgb_crossval(max_depth, min_child_weight, eta, subsample, colsample_bytree, gamma, lambda_, alpha):
         """
         Wrapper for xgb_cv
@@ -743,7 +681,7 @@ def catboost_cv(learning_rate, l2_leaf_reg, bagging_temperature, depth, x_train,
 
     catboost = CatBoostRegressor(**params)
 
-    cv_result = cross_validate(estimator=catboost, X=x_train, y=y_train)
+    cv_result = model_selection.cross_validate(estimator=catboost, X=x_train, y=y_train)
 
     mse = cv_result['test_score'] ** 2
 
@@ -760,6 +698,7 @@ def optimize_catboost(x_train, y_train, pbounds, n_iter, init_points):
     :param init_points:
     :return:
     """
+
     def catboost_crossval(learning_rate, l2_leaf_reg, bagging_temperature, depth):
         """
         Wrapper for catboost_cv
