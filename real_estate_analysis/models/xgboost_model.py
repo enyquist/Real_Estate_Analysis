@@ -1,4 +1,5 @@
 import xgboost as xgb
+import datetime
 
 import real_estate_analysis.utils.functions as func
 
@@ -111,6 +112,16 @@ def main(api):
     logger.info(f"Test Mean Squared Error: {dict_scores['test_mean_squared_error']:0.2f}")
     logger.info(f"Test Median Absolute Error: {dict_scores['test_median_absolute_error']:0.2f}")
     logger.info(f"Test R2 score: {dict_scores['test_r2']:0.2f}")
+
+    ####################################################################################################################
+    # Evaluate and Save
+    ####################################################################################################################
+
+    today = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+
+    fname = f'xgboost_{today}.joblib'
+
+    func.validate_model(optimized_model, dict_scores, fname)
 
 
 if __name__ == '__main__':

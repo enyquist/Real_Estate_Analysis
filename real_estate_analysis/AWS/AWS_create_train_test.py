@@ -38,7 +38,6 @@ def main(api):
             'description.baths_1qtr',
             'description.lot_sqft',
             'description.sqft',
-            'description.garage',
             'description.beds',
             'description.stories',
             'location.address.coordinate.lon',

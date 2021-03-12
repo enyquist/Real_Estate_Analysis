@@ -49,7 +49,7 @@ def main(api, bool_override=False):
             state = row['state']
             obj = RealEstateData(city=city, state=state, api=api)
             df_data = obj.results
-            str_filename = f'{state}-{city}'
+            str_filename = f'{state}-{city}.tgz'
             if df_data is not None:
 
                 # Stream to s3

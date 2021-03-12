@@ -6,8 +6,10 @@ from io import StringIO, BytesIO
 import gzip
 import itertools
 import configparser
+import joblib
+import os
 
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV, cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor, VotingRegressor, IsolationForest
 from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.svm import SVR
@@ -28,6 +30,8 @@ from skopt import BayesSearchCV
 from skopt.callbacks import DeltaXStopper
 
 from catboost import CatBoostRegressor
+
+from real_estate_analysis.utils.Model import ModelObject
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -94,35 +98,45 @@ def prepare_my_data(my_df, data='sale'):
     :param data:
     :return:
     """
-    while True:
-        if data.lower() not in ['sale', 'sold']:
-            logger.error("parameter 'data' must be equal to 'sale' or 'sold'")
-            return
-        break
+    if data.lower() not in ['sale', 'sold']:
+        logger.error("parameter 'data' must be equal to 'sale' or 'sold'")
+        return
 
     if data == 'sale':
         na_subset = ['list_price', 'location.address.coordinate.lon', 'location.address.coordinate.lat',
                      'tags', 'location.address.state_code']
         drop_subset = ['list_price', 'location.address.state_code', 'tags']
-        price_subset = ['list_price']
-        state_subset = 'location.address.state_code'
+        price = 'list_price'
+        state = 'location.address.state_code'
+        building_size = 'description.sqft'
+        lot_size = 'description.lot_sqft'
+        total_rooms = ['description.baths_full', 'description.baths_half', 'description.beds']
 
     else:
         na_subset = ['price', 'address.lon', 'address.lat', 'address.state_code']
         drop_subset = ['price', 'address.state_code']
-        price_subset = ['price']
-        state_subset = 'address.state_code'
+        price = 'price'
+        state = 'address.state_code'
+        building_size = 'building_size.size'
+        lot_size = 'lot_size.size'
+        total_rooms = ['baths_full', 'baths_half', 'beds']
 
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
-    my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore'))
+    my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore', downcast='float'))
 
-    # Drop entries that have no list_price, lat / long, tags, or associated city
+    # Drop entries that have no price, lat / long, tags (if appropriate to the data set), or associated city
     my_df = my_df.dropna(axis=0, subset=na_subset)
+
+    # Feature Engineering
+    my_df['price_per_sqft'] = (my_df[price] / my_df[building_size]).replace([np.nan, np.inf], -1)
+    my_df['price_per_lot'] = (my_df[price] / my_df[lot_size]).replace([np.nan, np.inf], -1)
+    my_df['total_rooms'] = np.sum(my_df[total_rooms], axis=1)
+    my_df['state_encoding'] = pd.Categorical(my_df[state], categories=my_df[state].unique()).codes
 
     my_df = my_df.reset_index(drop=True)
 
     # split into features and targets elements, taking logarithm of targets
-    X, y = my_df.drop(drop_subset, axis=1), np.log1p(my_df[price_subset])
+    X, y = my_df.drop(drop_subset, axis=1), np.log1p(my_df[[price]])
 
     if data == 'sale':
 
@@ -145,13 +159,7 @@ def prepare_my_data(my_df, data='sale'):
 
     # Split data, stratifying by state
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42,
-                                                        stratify=my_df[state_subset])
-
-    # # Break out tfidf vectorization, don't want to scale it
-    # X_train_no_encoding = X_train[X.columns]
-    # X_train_encoding = X_train[df_tfidf_encoding.columns]
-    # X_test_no_encoding = X_test[X.columns]
-    # X_test_encoding = X_test[df_tfidf_encoding.columns]
+                                                        stratify=my_df[state])
 
     # Impute missing values
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
@@ -442,10 +450,7 @@ def create_df_from_s3(bucket='re-raw-data'):
     list_formatted_data = []
     for content in list_data:
         key = content['Key']
-        data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key)
-        data.columns = data.iloc[0]
-        data = data.drop(0)
-        data = data.reset_index(drop=True)
+        data = s3_to_pandas_with_processing(client=s3, bucket=bucket, key=key, header=0)
         list_formatted_data.append(data)
 
     # Concat data into master Dataframe
@@ -706,3 +711,106 @@ def optimize_xgb(dtrain, pbounds, n_iter, init_points):
     optimizer.maximize(n_iter=n_iter, init_points=init_points, acq='ei')
 
     return optimizer
+
+
+def catboost_cv(learning_rate, l2_leaf_reg, bagging_temperature, depth, x_train, y_train):
+    """
+    Function to perform cross validation of an CatBoost model
+    :param learning_rate:
+    :param l2_leaf_reg:
+    :param bagging_temperature:
+    :param depth:
+    :param x_train:
+    :param y_train:
+    :return:
+    """
+
+    params = {
+        'loss_function': 'RMSE',
+        'eval_metric': 'RMSE',
+        'iterations': 999,
+        'learning_rate': learning_rate,
+        'random_seed': 42,
+        'l2_leaf_reg': l2_leaf_reg,
+        'bagging_temperature': bagging_temperature,
+        'depth': int(depth),
+        'early_stopping_rounds': 10,
+        'od_pval': 10e-2,
+        'task_type': 'GPU',
+        'logging_level': 'Silent',
+        'boosting_type': 'Plain'
+    }
+
+    catboost = CatBoostRegressor(**params)
+
+    cv_result = cross_validate(estimator=catboost, X=x_train, y=y_train)
+
+    mse = cv_result['test_score'] ** 2
+
+    return -1.0 * mse
+
+
+def optimize_catboost(x_train, y_train, pbounds, n_iter, init_points):
+    """
+    Performs Bayesian Optimization of an CatBoost Model
+    :param x_train:
+    :param y_train:
+    :param pbounds:
+    :param n_iter:
+    :param init_points:
+    :return:
+    """
+    def catboost_crossval(learning_rate, l2_leaf_reg, bagging_temperature, depth):
+        """
+        Wrapper for catboost_cv
+        :param learning_rate:
+        :param l2_leaf_reg:
+        :param bagging_temperature:
+        :param depth:
+        :return:
+        """
+        return catboost_cv(learning_rate, l2_leaf_reg, bagging_temperature, depth, x_train, y_train)
+
+    optimizer = BayesianOptimization(
+        f=catboost_crossval,
+        pbounds=pbounds,
+        bounds_transformer=SequentialDomainReductionTransformer(),
+        random_state=42,
+        verbose=2
+    )
+
+    optimizer.maximize(n_iter=n_iter, init_points=init_points, acq='ei')
+
+    return optimizer
+
+
+def validate_model(model, dict_scores, file_name):
+    """
+    Check if a new model performs better than an existing model. If True, save the model and archive the previous model
+    :param model: The model to check
+    :param dict_scores: Dictionary of model scores
+    :param file_name: Name to save model
+    :return:
+    """
+
+    dir_, _, file = os.walk('data/models/sold')
+
+    old_path = os.path.join(dir_[0], dir_[1][1], file[2][0]).replace('\\', '/')
+    archive_path = os.path.join(dir_[0], dir_[1][0], file[2][0]).replace('\\', '/')
+    new_path = os.path.join(dir_[0], dir_[1][1], file_name).replace('\\', '/')
+
+    with open(old_path, 'rb') as f:
+        old_model = joblib.load(f)
+
+    old_scores = old_model.get_scores()
+
+    if old_scores['test_mean_squared_error'] < dict_scores['test_mean_squared_error']:
+        new_model = ModelObject(model, dict_scores)
+
+        os.rename(old_path, archive_path)
+
+        with open(new_path, 'wb') as f:
+            joblib.dump(new_model, f, compress='lmze')
+        logger.info('Evaluated Model outperformed previous iteration. Evaluated Model saved.')
+
+    logger.info('Evaluated Model did not outperform previous iteration.')
