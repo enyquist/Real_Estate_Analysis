@@ -35,18 +35,15 @@ config.read('../config.ini')
 logger = logging.getLogger(__name__)
 
 
-def prep_gpu(gb=3):
+def prep_gpu():
     """
     Function to turn on tensorflow and configure gpu
     :return:
     """
     import tensorflow as tf
 
-    # Limit GPU usage to 3GB to prevent using all of the available GPU memory
+    # Set GPU
     gpus = tf.config.list_physical_devices('GPU')
-    # tf.config.experimental.set_virtual_device_configuration(gpus[0],
-    #                                                         [tf.config.experimental.VirtualDeviceConfiguration(
-    #                                                             memory_limit=gb*3)])
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
 
@@ -99,6 +96,7 @@ def prepare_my_data(my_df, data='sale'):
         return
 
     if data == 'sale':
+        folder = 'sale'
         na_subset = ['list_price', 'location.address.coordinate.lon', 'location.address.coordinate.lat',
                      'tags', 'location.address.state_code']
         drop_subset = ['list_price', 'location.address.state_code', 'tags']
@@ -109,6 +107,7 @@ def prepare_my_data(my_df, data='sale'):
         total_rooms = ['description.baths_full', 'description.baths_half', 'description.beds']
 
     else:
+        folder = 'sold'
         na_subset = ['price', 'address.lon', 'address.lat', 'address.state_code']
         drop_subset = ['price', 'address.state_code']
         price = 'price'
@@ -132,7 +131,7 @@ def prepare_my_data(my_df, data='sale'):
     my_df = my_df.reset_index(drop=True)
 
     # split into features and targets elements, taking logarithm of targets
-    X, y = my_df.drop(drop_subset, axis=1), np.log1p(my_df[[price]])
+    X, y = my_df.drop(drop_subset, axis=1), np.log(my_df[[price]])
 
     if data == 'sale':
 
@@ -162,6 +161,10 @@ def prepare_my_data(my_df, data='sale'):
     train_imp = imp.fit_transform(X_train)
     test_imp = imp.transform(X_test)
 
+    # Save imputer for later ETL
+    with open(f'../../data/models/{folder}/imputer.joblib', 'wb') as file:
+        joblib.dump(imp, file, compress='lmza')
+
     # Outlier Detection and remove outliers
     clf = ensemble.IsolationForest(random_state=42).fit_predict(train_imp)
     mask = np.where(clf == -1)
@@ -172,6 +175,10 @@ def prepare_my_data(my_df, data='sale'):
     scaler = StandardScaler()
     train_scale = scaler.fit_transform(train_no_outlier)
     test_scale = scaler.transform(test_imp)
+
+    # Save scaler for later ETL
+    with open(f'../../data/models/{folder}/scaler.joblib', 'wb') as file:
+        joblib.dump(scaler, file, compress='lmza')
 
     # Back to DataFrame
     df_train_inter = pd.DataFrame(data=train_scale, columns=X_train.columns)
@@ -749,7 +756,7 @@ def validate_model(model, dict_scores, file_name):
         os.rename(old_path, archive_path)
 
         with open(new_path, 'wb') as f:
-            joblib.dump(new_model, f, compress='lmze')
+            joblib.dump(new_model, f, compress='lmza')
         logger.info('Evaluated Model outperformed previous iteration. Evaluated Model saved.')
 
     logger.info('Evaluated Model did not outperform previous iteration.')
