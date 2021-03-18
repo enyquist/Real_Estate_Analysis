@@ -163,7 +163,7 @@ def prepare_my_data(my_df, data='sale'):
 
     # Save imputer for later ETL
     with open(f'../../data/models/{folder}/imputer.joblib', 'wb') as file:
-        joblib.dump(imp, file, compress='lmza')
+        joblib.dump(imp, file, compress='lzma')
 
     # Outlier Detection and remove outliers
     clf = ensemble.IsolationForest(random_state=42).fit_predict(train_imp)
@@ -178,7 +178,7 @@ def prepare_my_data(my_df, data='sale'):
 
     # Save scaler for later ETL
     with open(f'../../data/models/{folder}/scaler.joblib', 'wb') as file:
-        joblib.dump(scaler, file, compress='lmza')
+        joblib.dump(scaler, file, compress='lzma')
 
     # Back to DataFrame
     df_train_inter = pd.DataFrame(data=train_scale, columns=X_train.columns)
