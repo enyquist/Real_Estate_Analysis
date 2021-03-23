@@ -84,37 +84,21 @@ def create_logger(e_handler_name, t_handler_name):
     return logger
 
 
-def prepare_my_data(my_df, data='sale'):
+def prepare_my_data(my_df):
     """
 
     :param my_df:
-    :param data:
     :return:
     """
-    if data.lower() not in ['sale', 'sold']:
-        logger.error("parameter 'data' must be equal to 'sale' or 'sold'")
-        return
 
-    if data == 'sale':
-        folder = 'sale'
-        na_subset = ['list_price', 'location.address.coordinate.lon', 'location.address.coordinate.lat',
-                     'tags', 'location.address.state_code']
-        drop_subset = ['list_price', 'location.address.state_code', 'tags']
-        price = 'list_price'
-        state = 'location.address.state_code'
-        building_size = 'description.sqft'
-        lot_size = 'description.lot_sqft'
-        total_rooms = ['description.baths_full', 'description.baths_half', 'description.beds']
-
-    else:
-        folder = 'sold'
-        na_subset = ['price', 'address.lon', 'address.lat', 'address.state_code']
-        drop_subset = ['price', 'address.state_code']
-        price = 'price'
-        state = 'address.state_code'
-        building_size = 'building_size.size'
-        lot_size = 'lot_size.size'
-        total_rooms = ['baths_full', 'baths_half', 'beds']
+    folder = 'sold'
+    na_subset = ['price', 'address.lon', 'address.lat', 'address.state_code']
+    drop_subset = ['price', 'address.state_code']
+    price = 'price'
+    state = 'address.state_code'
+    building_size = 'building_size.size'
+    lot_size = 'lot_size.size'
+    total_rooms = ['baths_full', 'baths_half', 'beds']
 
     # Force to numeric, as pandas_to_s3 casts everything to strings, ignore the categorical data
     my_df = my_df.apply(lambda col: pd.to_numeric(col, errors='ignore', downcast='float'))
@@ -132,25 +116,6 @@ def prepare_my_data(my_df, data='sale'):
 
     # split into features and targets elements, taking logarithm of targets
     X, y = my_df.drop(drop_subset, axis=1), np.log(my_df[[price]])
-
-    if data == 'sale':
-
-        # Collect corpus
-        list_corpus = []
-
-        for _, row in my_df.iterrows():
-            row = ' '.join(row.tags.strip("'][' '").split("', '"))
-            list_corpus.append(row)
-
-        # Vectorize Corpus
-        vectorizer = TfidfVectorizer()
-        tfidf_tags = vectorizer.fit_transform(list_corpus)
-
-        # Back to DataFrame
-        df_tfidf_encoding = pd.DataFrame(data=tfidf_tags.toarray(), columns=vectorizer.get_feature_names())
-
-        # Concat vectorization to X
-        X = pd.concat([X, df_tfidf_encoding], axis=1)
 
     # Split data, stratifying by state
     X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, random_state=42,

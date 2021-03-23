@@ -32,12 +32,12 @@ class ModelObject:
 
     @staticmethod
     def load_imputer():
-        with open('../../data/models/sold/imputer.joblib', 'rb') as file:
+        with open('../data/models/sold/imputer.joblib', 'rb') as file:
             imp = joblib.load(file)
         return imp
 
     @staticmethod
     def load_scaler():
-        with open('../../data/models/sold/scaler.joblib', 'rb') as file:
+        with open('../data/models/sold/scaler.joblib', 'rb') as file:
             scaler = joblib.load(file)
         return scaler

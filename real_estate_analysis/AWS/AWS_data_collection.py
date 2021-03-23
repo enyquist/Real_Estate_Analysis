@@ -82,17 +82,6 @@ def main(api, bool_override=False):
 
 
 if __name__ == '__main__':
-    while True:
-        value_1 = input('Choose API: Enter 1 for RAPIDAPI_SALE, 0 for RAPIDAPI_SOLD:')
-        try:
-            value_1 = int(value_1)
-        except ValueError:
-            print('Please use numeric digits!')
-            continue
-        if value_1 not in [0, 1]:
-            print('Please enter 1 or 0!')
-            continue
-        break
 
     while True:
         value_2 = input('Override API Calls? Enter 1 override API call limits, 0 to limit API calls:')
@@ -106,7 +95,7 @@ if __name__ == '__main__':
             continue
         break
 
-    API = 'RAPIDAPI_SALE' if value_1 == 1 else 'RAPIDAPI_SOLD'
+    API = 'RAPIDAPI_SOLD'
     BOOL_OVERRIDE = True if value_2 == 1 else False
     print(f'Using {API}, Override API Calls: {BOOL_OVERRIDE}')
     main(API, bool_override=BOOL_OVERRIDE)

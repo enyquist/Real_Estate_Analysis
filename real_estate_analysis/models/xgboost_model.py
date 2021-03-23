@@ -4,7 +4,7 @@ import datetime
 import real_estate_analysis.utils.functions as func
 
 
-def main(api):
+def main():
     ####################################################################################################################
     # Config Log File
     ####################################################################################################################
@@ -16,16 +16,12 @@ def main(api):
     # Data
     ####################################################################################################################
 
-    schema = 'sale' if api == 'RAPIDAPI_SALE' else 'sold'
-
-    bucket = 're-formatted-data'
-
-    df_train = func.fetch_from_s3(bucket=bucket, key=f'{schema}_train.tgz')
-    df_test = func.fetch_from_s3(bucket=bucket, key=f'{schema}_test.tgz')
+    df_train = func.fetch_from_s3(bucket='re-formatted-data', key=f'sold_train.tgz')
+    df_test = func.fetch_from_s3(bucket='re-formatted-data', key=f'sold_test.tgz')
 
     # Split the data
-    X_train, y_train = df_train.drop(['list_price'], axis=1).values, df_train['list_price'].values
-    X_test, y_test = df_test.drop(['list_price'], axis=1).values, df_test['list_price'].values
+    X_train, y_train = df_train.drop(['price'], axis=1).values, df_train['price'].values
+    X_test, y_test = df_test.drop(['price'], axis=1).values, df_test['price'].values
 
     # Format as DMatrices
     dtrain = xgb.DMatrix(X_train, label=y_train)
@@ -34,8 +30,6 @@ def main(api):
     ####################################################################################################################
     # Bayesian Optimization
     ####################################################################################################################
-
-    NUM_BOOST_ROUND = 999
 
     dict_params = {
         'max_depth': (3, 10),
@@ -71,6 +65,8 @@ def main(api):
     ####################################################################################################################
     # Train Model with Optimized Params
     ####################################################################################################################
+
+    NUM_BOOST_ROUND = 999
 
     logger.info('Starting Model Training')
 
@@ -125,30 +121,4 @@ def main(api):
 
 
 if __name__ == '__main__':
-    while True:
-        value_1 = input('Choose API: Enter 1 for RAPIDAPI_SALE, 0 for RAPIDAPI_SOLD:')
-        try:
-            value_1 = int(value_1)
-        except ValueError:
-            print('Please use numeric digits!')
-            continue
-        if value_1 not in [0, 1]:
-            print('Please enter 1 or 0!')
-            continue
-        break
-
-    API = 'RAPIDAPI_SALE' if value_1 == 1 else 'RAPIDAPI_SOLD'
-    print(f'Formatting data from {API} API')
-    main(API)
-
-#######################################################################################################################
-# s3 Data
-#######################################################################################################################
-
-# Results from XGBoost Search:
-# Best params: {'alpha': 5.0, 'colsample_bytree': 0.859276613651707, 'eta': 0.08346818093108868, 'gamma': 5.0114858126921185, 'max_depth': 9, 'min_child_weight': 0.10351481390323147, 'subsample': 0.9075369208191467, 'lambda': 3.5330644157281985, 'objective': 'reg:squarederror', 'eval_metric': 'rmse', 'tree_method': 'gpu_hist', 'max_bin': 64, 'predictor': 'gpu_predictor', 'gpu_id': 0, 'n_estimators': 512}
-# Cross Validation Scores: [0.64225837 0.48563385 0.54254486 0.5737242  0.42669225]
-# Validation Score: 0.93
-# Accuracy on test data: 0.53 (+/- 0.15)
-# Test score: 0.44
-# MSE: 1040071490897.22
+    main()

@@ -8,7 +8,7 @@ config = configparser.ConfigParser()
 config.read('../config.ini')
 
 
-def main(api):
+def main():
     # Generate the boto3 client for interacting with S3
     s3 = boto3.client('s3',
                       region_name='us-east-1',
@@ -20,55 +20,35 @@ def main(api):
 
     logger.info('Streaming raw data to local environment')
 
-    bucket = 're-raw-data' if api == 'RAPIDAPI_SALE' else 're-sold-data'
+    bucket = 're-sold-data'
 
     # Retrieve data from s3 and format into dataframe
     df = func.create_df_from_s3(bucket=bucket)
 
     logger.info('Raw data successfully streamed')
 
-    if api == 'RAPIDAPI_SALE':
-        # Filter for Single Family homes
-        df_sf = df[df['description.type'] == 'single_family']
-        list_features = [
-            'description.year_built',
-            'description.baths_full',
-            'description.baths_3qtr',
-            'description.baths_half',
-            'description.baths_1qtr',
-            'description.lot_sqft',
-            'description.sqft',
-            'description.beds',
-            'description.stories',
-            'location.address.coordinate.lon',
-            'location.address.coordinate.lat',
-            'location.address.state_code',
-            'tags',
-            'list_price'
-        ]
-    else:
-        df_sf = df[df['prop_type'] == 'single_family']
-        list_features = [
-            'year_built',
-            'baths_full',
-            'baths_half',
-            'lot_size.size',
-            'building_size.size',
-            'beds',
-            'address.lon',
-            'address.lat',
-            'address.state_code',
-            'price'
-        ]
+    df_sf = df[df['prop_type'] == 'single_family']
+    list_features = [
+        'year_built',
+        'baths_full',
+        'baths_half',
+        'lot_size.size',
+        'building_size.size',
+        'beds',
+        'address.lon',
+        'address.lat',
+        'address.state_code',
+        'price'
+    ]
 
     # Create Features DataFrame
     df_sf_features = df_sf[list_features]
 
     logger.info('Creating train and test sets from raw data')
 
-    schema = 'sale' if api == 'RAPIDAPI_SALE' else 'sold'
+    schema = 'sold'
 
-    df_train, df_test = func.prepare_my_data(my_df=df_sf_features, data=schema)
+    df_train, df_test = func.prepare_my_data(my_df=df_sf_features)
 
     # Concat master dataset
     df_features = pd.concat([df_train, df_test], axis=0).reset_index(drop=True)
@@ -97,18 +77,4 @@ def main(api):
 
 
 if __name__ == '__main__':
-    while True:
-        value_1 = input('Choose API: Enter 1 for RAPIDAPI_SALE, 0 for RAPIDAPI_SOLD:')
-        try:
-            value_1 = int(value_1)
-        except ValueError:
-            print('Please use numeric digits!')
-            continue
-        if value_1 not in [0, 1]:
-            print('Please enter 1 or 0!')
-            continue
-        break
-
-    API = 'RAPIDAPI_SALE' if value_1 == 1 else 'RAPIDAPI_SOLD'
-    print(f'Formatting data from {API} API')
-    main(API)
+    main()
