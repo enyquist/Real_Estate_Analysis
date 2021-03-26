@@ -1,7 +1,7 @@
 import boto3
 import configparser
 
-import real_estate_analysis.utils.functions as func
+import real_estate_analysis.models.functions as func
 
 config = configparser.ConfigParser()
 config.read('../config.ini')

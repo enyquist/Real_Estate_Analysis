@@ -1,6 +1,8 @@
-/real_estate_analysis/models/catboost_info/
+/real_estate_analysis/models/catboost_model/catboost_info/
 real_estate_analysis/create_config.py
 real_estate_analysis/config.ini
 /real_estate_analysis/logs/
 /data/models/
 /data/AWS/city_records.xlsx
+/real_estate_analysis/models/catboost_model/catboost_info/
+/real_estate_analysis/app/app/site.db

@@ -1,6 +1,7 @@
 import tensorflow.keras.callbacks as callbacks
 
-import real_estate_analysis.utils.functions as func
+import real_estate_analysis.models.functions as func
+import real_estate_analysis.models.deep_nn_model.utils as dnn_utils
 
 
 def main():
@@ -14,23 +15,16 @@ def main():
     # Data
     ####################################################################################################################
 
-    bucket = 're-formatted-data'
-
-    df_train = func.fetch_from_s3(bucket=bucket, key='train.tgz')
-    df_test = func.fetch_from_s3(bucket=bucket, key='test.tgz')
-
-    # Split the data
-    X_train, y_train = df_train.drop(['list_price'], axis=1).values, df_train['list_price'].values
-    X_test, y_test = df_test.drop(['list_price'], axis=1).values, df_test['list_price'].values
+    X_train, y_train, X_test, y_test = func.retrieve_and_prepare_data()
 
     ####################################################################################################################
     # Model Creation
     ####################################################################################################################
 
-    func.prep_gpu()
+    dnn_utils.prep_gpu()
 
-    model = func.create_model(input_size=X_train.shape[1],
-                              hidden_layers=10)
+    model = dnn_utils.create_model(input_size=X_train.shape[1],
+                                   hidden_layers=10)
 
     ####################################################################################################################
     # Training

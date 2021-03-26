@@ -2,7 +2,8 @@ import boto3
 import configparser
 import pandas as pd
 
-from real_estate_analysis.utils import functions as func
+from real_estate_analysis.models import functions as func
+import real_estate_analysis.AWS.utils as AWS_utils
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -23,7 +24,7 @@ def main():
     bucket = 're-sold-data'
 
     # Retrieve data from s3 and format into dataframe
-    df = func.create_df_from_s3(bucket=bucket)
+    df = AWS_utils.create_df_from_s3(bucket=bucket)
 
     logger.info('Raw data successfully streamed')
 
@@ -63,7 +64,7 @@ def main():
     # Stream to s3
     for str_filename, df in zip([f'{schema}_train.tgz', f'{schema}_test.tgz'], [df_train, df_test]):
         try:
-            response = func.pandas_to_s3(df=df, client=s3, bucket='re-formatted-data', key=str_filename)
+            response = AWS_utils.pandas_to_s3(df=df, client=s3, bucket='re-formatted-data', key=str_filename)
 
             if response['ResponseMetadata']['HTTPStatusCode'] == 200:
                 logger.info(f'{str_filename} successfully uploaded')

@@ -72,7 +72,7 @@ class RealEstateData:
                 if self.validate_api_call(response):
                     list_json_data.append(json_content)
 
-                else:  # Try again todo Error is usually 500: Error JSON parsing
+                else:  # Try again Error is usually 500: Error JSON parsing
 
                     response = self.api_call(offset=offset)
 

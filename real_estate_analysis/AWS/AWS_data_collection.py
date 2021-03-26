@@ -3,8 +3,9 @@ import boto3
 import datetime
 import configparser
 
-from real_estate_analysis.utils.RealEstateData import RealEstateData
-from real_estate_analysis.utils import functions as func
+from real_estate_analysis.real_estate_data.RealEstateData import RealEstateData
+from real_estate_analysis.models import functions as func
+import real_estate_analysis.AWS.utils as AWS_utils
 
 config = configparser.ConfigParser()
 config.read('../config.ini')
@@ -29,7 +30,7 @@ def main(api, bool_override=False):
     # Load CSV
     df_city_log = pd.read_csv(LOG_FILEPATH, encoding='latin-1')
 
-    # Reset Index, in event a previous collection run resulted in deletions  todo does this matter?
+    # Reset Index, in event a previous collection run resulted in deletions
     df_city_log.reset_index(drop=True, inplace=True)
 
     # Select correct column for API
@@ -54,8 +55,8 @@ def main(api, bool_override=False):
 
                 # Stream to s3
                 try:
-                    response = func.pandas_to_s3(df=df_data, client=s3, bucket=config.get(api, 'rapidapi_bucket'),
-                                                 key=str_filename)
+                    response = AWS_utils.pandas_to_s3(df=df_data, client=s3, bucket=config.get(api, 'rapidapi_bucket'),
+                                                      key=str_filename)
 
                     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
                         logger.info(f'{str_filename} successfully uploaded, collected {api} data')
