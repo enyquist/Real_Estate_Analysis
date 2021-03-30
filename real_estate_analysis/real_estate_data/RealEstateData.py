@@ -35,18 +35,21 @@ class RealEstateData:
         self.city = city.upper()
         self.state = state.upper()
         self.api = api
-        self.url = config.get(api, 'rapidapi_url')
-        self._jsonREData = self.fetch_housing_data()
-        self.results = self.parse()
-        self.requests_remaining = 99999
+        self._url = config.get(api, 'rapidapi_url')
+        self._jsonREData = self._fetch_housing_data()
+        self._results = self._parse()
+        self._requests_remaining = 99999
 
     def __repr__(self):
-        return f"RealEstateData('{self.city, self.state}')"
+        return f"RealEstateData('{self.city, self.state, self.api}')"
 
     def __str__(self):
-        return f'{self.city, self.state} real estate data'
+        return f'{self.city, self.state, self.api} real estate data'
 
-    def fetch_housing_data(self):
+    def get_results(self):
+        return self._results
+
+    def _fetch_housing_data(self):
         """
         Function to fetch all housing data from Realtor.com via RapidAPI
         :return: Dictionary of Dictionaries containing all the results from the the API call
@@ -122,14 +125,14 @@ class RealEstateData:
         retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
         s.mount('https://', HTTPAdapter(max_retries=retries))
 
-        response = s.get(self.url, headers=headers, params=querystring)
+        response = s.get(self._url, headers=headers, params=querystring)
 
         config.set(self.api, 'rapidapi_api_call_limit', response.headers['X-RateLimit-Requests-Remaining'])
 
         with open('../config.ini', 'w') as configfile:
             config.write(configfile)
 
-        self.requests_remaining = int(response.headers['X-RateLimit-Requests-Remaining'])
+        self._requests_remaining = int(response.headers['X-RateLimit-Requests-Remaining'])
 
         return response
 
@@ -180,7 +183,7 @@ class RealEstateData:
 
         return list_chunk_sizes
 
-    def parse(self):
+    def _parse(self):
         """
         Function to format the entire dataset as a DataFrame
         :return: DataFrame built from total dataset

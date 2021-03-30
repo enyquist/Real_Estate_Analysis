@@ -49,7 +49,7 @@ def main(api, bool_override=False):
             city = row['city']
             state = row['state']
             obj = RealEstateData(city=city, state=state, api=api)
-            df_data = obj.results
+            df_data = obj.get_results()
             str_filename = f'{state}-{city}.tgz'
             if df_data is not None:
 
