@@ -28,3 +28,17 @@ def home():
 def about():
     return render_template('about.html', title='About')
 
+
+@main.route('/faq')
+def faq():
+    return render_template('faq.html', title='FAQ')
+
+
+@main.route('/pricing')
+def pricing():
+    return render_template('pricing.html', title='Pricing')
+
+
+@main.route('/contact_us')
+def contact_us():
+    return render_template('contact_us.html', title='Contact Us')

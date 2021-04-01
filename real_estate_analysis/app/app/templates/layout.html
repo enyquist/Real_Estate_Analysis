@@ -4,48 +4,116 @@
     <!-- Required meta tags -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/fonts/icomoon/style.css">
+    <link rel="stylesheet" href="static/fonts/flaticon/font/flaticon.css">
+    <link rel="stylesheet" href="static/css/tiny-slider.css">
+    <link rel="stylesheet" href="static/css/aos.css">
+    <link rel="stylesheet" href="static/css/style.css">
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<!--    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->
 
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
+<!--    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">-->
+
+    <!--    Favicon-->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
 
     {% if title %}
-        <title>Flask Blog - {{ title }}</title>
+        <title>Mikey the Model - {{ title }}</title>
     {% else %}
-        <title>Flask Blog</title>
+        <title>Mikey the Model</title>
     {% endif %}
 </head>
 <body>
-    <header class="site-header">
-      <nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top">
-        <div class="container">
-          <a class="navbar-brand mr-4" href="/">Flask Blog</a>
-          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarToggle">
-            <div class="navbar-nav mr-auto">
-              <a class="nav-item nav-link" href="{{ url_for('main.home') }}">Home</a>
-              <a class="nav-item nav-link" href="{{ url_for('main.about') }}">About</a>
-            </div>
-            <!-- Navbar Right Side -->
-            <div class="navbar-nav">
-                {% if current_user.is_authenticated %}
-                    <a class="nav-item nav-link" href="{{ url_for('users.account') }}">Account</a>
-                    <a class="nav-item nav-link" href="{{ url_for('users.logout') }}">Logout</a>
-                {% else %}
-                    <a class="nav-item nav-link" href="{{ url_for('users.login') }}">Login</a>
-                    <a class="nav-item nav-link" href="{{ url_for('users.register') }}">Register</a>
-                {% endif %}
-            </div>
-          </div>
-        </div>
-      </nav>
-    </header>
+    <div class="site-mobile-menu site-navbar-target">
+		<div class="site-mobile-menu-header">
+			<div class="site-mobile-menu-close">
+				<span class="icofont-close js-menu-toggle"></span>
+			</div>
+		</div>
+		<div class="site-mobile-menu-body"></div>
+	</div>
+    <nav class="site-nav">
+		<div class="container">
+			<div class="menu-bg-wrap">
+				<div class="site-navigation">
+					<a href="{{ url_for('main.home') }}" class="logo m-0 float-start">Mikey</a>
+
+					<ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
+						<li class="active"><a href="{{ url_for('main.home') }}">Home</a></li>
+						<li class="has-children">
+							<a href="#">Properties</a>
+							<ul class="dropdown">
+								<li><a href="#">Buy Property</a></li>
+								<li><a href="#">Sell Property</a></li>
+								<li class="has-children">
+									<a href="#">Dropdown</a>
+									<ul class="dropdown">
+										<li><a href="#">Sub Menu One</a></li>
+										<li><a href="#">Sub Menu Two</a></li>
+										<li><a href="#">Sub Menu Three</a></li>
+									</ul>
+								</li>
+							</ul>
+						</li>
+						<li><a href="{{ url_for('main.pricing') }}">Services</a></li>
+						<li><a href="{{ url_for('main.about') }}">About</a></li>
+						<li><a href="{{ url_for('main.contact_us') }}">Contact Us</a></li>
+						{% if current_user.is_authenticated %}
+							<li><a class="nav-item nav-link" href="{{ url_for('users.account') }}">Account</a></li>
+							<li><a class="nav-item nav-link" href="{{ url_for('users.logout') }}">Logout</a></li>
+						{% else %}
+							<li><a class="nav-item nav-link" href="{{ url_for('users.login') }}">Login</a></li>
+							<li><a class="nav-item nav-link" href="{{ url_for('users.register') }}">Register</a></li>
+						{% endif %}
+					</ul>
+
+					<a href="#" class="burger me-auto float-end mt-1 site-menu-toggle js-menu-toggle d-inline-block d-lg-none" data-toggle="collapse" data-target="#main-navbar">
+						<span></span>
+					</a>
+
+				</div>
+			</div>
+		</div>
+	</nav>
+	{% block hero %}{% endblock %}
+	{% block features %}{% endblock %}
+	{% block team %}{% endblock %}
+
+
+<!--    <header class="site-header">-->
+<!--      <nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top">-->
+<!--        <div class="container">-->
+<!--          <a class="navbar-brand mr-4" href="/">Company Name</a>-->
+<!--          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">-->
+<!--            <span class="navbar-toggler-icon"></span>-->
+<!--          </button>-->
+<!--          <div class="collapse navbar-collapse" id="navbarToggle">-->
+<!--            <div class="navbar-nav mr-auto">-->
+<!--                <a class="nav-item nav-link" href="{{ url_for('main.home') }}">Home</a>-->
+<!--                <a class="nav-item nav-link" href="{{ url_for('main.about') }}">About</a>-->
+<!--                <a class="nav-item nav-link" href="{{ url_for('main.pricing') }}">Pricing</a>-->
+<!--                <a class="nav-item nav-link" href="{{ url_for('main.faq') }}">FAQ</a>-->
+<!--            </div>-->
+<!--             Navbar Right Side -->
+<!--            <div class="navbar-nav">-->
+<!--                {% if current_user.is_authenticated %}-->
+<!--                    <a class="nav-item nav-link" href="{{ url_for('users.account') }}">Account</a>-->
+<!--                    <a class="nav-item nav-link" href="{{ url_for('users.logout') }}">Logout</a>-->
+<!--                {% else %}-->
+<!--                    <a class="nav-item nav-link" href="{{ url_for('users.login') }}">Login</a>-->
+<!--                    <a class="nav-item nav-link" href="{{ url_for('users.register') }}">Register</a>-->
+<!--                {% endif %}-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </nav>-->
+<!--    </header>-->
     <main role="main" class="container">
       <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-12">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
@@ -57,24 +125,88 @@
             {% endwith %}
             {% block content %}{% endblock %}
         </div>
-        <div class="col-md-4">
-          <div class="content-section">
-            <h3>Our Sidebar</h3>
-            <p class='text-muted'>You can put any information here you'd like.
-              <ul class="list-group">
-                <li class="list-group-item list-group-item-light">Latest Posts</li>
-                <li class="list-group-item list-group-item-light">Announcements</li>
-                <li class="list-group-item list-group-item-light">Calendars</li>
-                <li class="list-group-item list-group-item-light">etc</li>
-              </ul>
-            </p>
-          </div>
-        </div>
       </div>
     </main>
+    <div class="site-footer">
+		<div class="container">
 
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+			<div class="row">
+				<div class="col-lg-4">
+					<div class="widget">
+						<h3>Contact</h3>
+						<address>43 Raymouth Rd. Baltemoer, London 3910</address>
+						<ul class="list-unstyled links">
+							<li><a href="tel://11234567890">+1(123)-456-7890</a></li>
+							<li><a href="tel://11234567890">+1(123)-456-7890</a></li>
+							<li><a href="mailto:info@mydomain.com">info@mydomain.com</a></li>
+						</ul>
+					</div>
+				</div>
+			<div class="col-lg-4">
+				<div class="widget">
+					<h3>Sources</h3>
+					<ul class="list-unstyled float-start links">
+						<li><a href="#">About us</a></li>
+						<li><a href="#">Services</a></li>
+						<li><a href="#">Vision</a></li>
+						<li><a href="#">Mission</a></li>
+						<li><a href="#">Terms</a></li>
+						<li><a href="#">Privacy</a></li>
+					</ul>
+					<ul class="list-unstyled float-start links">
+						<li><a href="#">Partners</a></li>
+						<li><a href="#">Business</a></li>
+						<li><a href="#">Careers</a></li>
+						<li><a href="#">Blog</a></li>
+						<li><a href="#">FAQ</a></li>
+						<li><a href="#">Creative</a></li>
+					</ul>
+				</div>
+			</div>
+			<div class="col-lg-4">
+				<div class="widget">
+					<h3>Links</h3>
+					<ul class="list-unstyled links">
+						<li><a href="#">Our Vision</a></li>
+						<li><a href="#">About us</a></li>
+						<li><a href="#">Contact us</a></li>
+					</ul>
+					<ul class="list-unstyled social">
+						<li><a href="#"><span class="icon-instagram"></span></a></li>
+						<li><a href="#"><span class="icon-twitter"></span></a></li>
+						<li><a href="#"><span class="icon-facebook"></span></a></li>
+						<li><a href="#"><span class="icon-linkedin"></span></a></li>
+						<li><a href="#"><span class="icon-pinterest"></span></a></li>
+						<li><a href="#"><span class="icon-dribbble"></span></a></li>
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div class="row mt-5">
+			<div class="col-12 text-center">
+				<p class="mb-0">Copyright ©<script type="text/javascript" async="" src="https://www.google-analytics.com/analytics.js"></script><script>document.write(new Date().getFullYear());</script> All rights reserved</p>
+			</div>
+		</div>
+		</div>
+	</div>
+
+    <!-- Preloader -->
+    <div id="overlayer"></div>
+    <div class="loader">
+		<div class="spinner-border" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
+    <script src="static/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/tiny-slider.js"></script>
+    <script src="static/js/aos.js"></script>
+    <script src="static/js/navbar.js"></script>
+    <script src="static/js/counter.js"></script>
+    <script src="static/js/custom.js"></script>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>

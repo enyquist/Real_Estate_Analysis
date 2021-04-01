@@ -1,15 +1,184 @@
 {% extends "layout.html" %}
-{% block content %}
-    {% for post in posts %}
-        <article class="media content-section">
-          <div class="media-body">
-            <div class="article-metadata">
-              <a class="mr-2" href="#">{{ post.author }}</a>
-              <small class="text-muted">{{ post.date_posted }}</small>
-            </div>
-            <h2><a class="article-title" href="#">{{ post.title }}</a></h2>
-            <p class="article-content">{{ post.content }}</p>
-          </div>
-        </article>
-    {% endfor %}
-{% endblock content %}
+{% block hero %}
+    <div class="hero">
+
+
+		<div class="hero-slide">
+			<div class="img overlay" style="background-image: url('static/images/hero_bg_1.jpg')"></div>
+			<div class="img overlay" style="background-image: url('static/images/hero_2.jpg')"></div>
+		</div>
+
+		<div class="container">
+			<div class="row justify-content-center align-items-center">
+				<div class="col-lg-9 text-center">
+					<h1 class="heading" data-aos="fade-up">Find a Perfect Dream House</h1>
+
+					<form action="#" class="narrow-w form-search d-flex align-items-stretch mb-5" data-aos="fade-up" data-aos-delay="200">
+						<input type="text" class="form-control px-4" placeholder="Your ZIP code or City. e.g. New York">
+						<button type="submit" class="btn btn-primary">Search</button>
+					</form>
+
+					<p class="lead narrow-w mb-5" data-aos="fade-up" data-aos-delay="300">Lorem ipsum dolor sit amet consectetur adipisicing elit. Numquam enim pariatur similique debitis vel nisi qui reprehenderit totam? Quod maiores.</p>
+
+					<p data-aos="fade-up" data-aos-delay="400"><a href="#" class="text-white has-arrow">View Properties <span class="icon-keyboard_backspace"></span></a></p>
+
+
+
+				</div>
+			</div>
+		</div>
+	</div>
+    <section class="features-1">
+		<div class="container">
+			<div class="row">
+				<div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+					<div class="box-feature">
+						<span class="flaticon-house"></span>
+						<h3>New Properties</h3>
+					</div>
+				</div>
+				<div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="400">
+					<div class="box-feature">
+						<span class="flaticon-house-3"></span>
+						<h3>Contact Agent</h3>
+					</div>
+				</div>
+				<div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="500">
+					<div class="box-feature">
+						<span class="flaticon-building"></span>
+						<h3>Building for Sale</h3>
+					</div>
+				</div>
+				<div class="col-6 col-lg-3" data-aos="fade-up" data-aos-delay="600">
+					<div class="box-feature">
+						<span class="flaticon-house-1"></span>
+						<h3>House for Sale</h3>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+{% endblock hero %}
+
+{% block features %}
+    <div class="section section-4 border-top">
+		<div class="container">
+			<div class="row justify-content-center  text-center mb-5">
+				<div class="col-lg-6">
+					<h2 class="font-weight-bold heading text-primary mb-4">We Bring Dream Homes To Reality</h2>
+					<p class="text-black-50">Lorem ipsum dolor sit amet consectetur adipisicing elit. Numquam enim pariatur similique debitis vel nisi qui reprehenderit totam? Quod maiores.</p>
+				</div>
+			</div>
+			<div class="row justify-content-between mb-5">
+				<div class="col-lg-7 mb-5 mb-lg-0">
+					<div class="img-about dots">
+						<img src="static/images/hero_2.jpg" alt="Image" class="img-fluid">
+					</div>
+				</div>
+				<div class="col-lg-4">
+					<div class="d-flex feature-h">
+						<span class="wrap-icon me-3">
+							<span class="icon-home2"></span>
+						</span>
+						<div class="feature-text">
+							<h3 class="heading">Quality properties</h3>
+							<p class="text-black-50">Lorem ipsum dolor sit amet consectetur adipisicing elit. Nostrum iste.</p>
+						</div>
+					</div>
+
+					<div class="d-flex feature-h">
+						<span class="wrap-icon me-3">
+							<span class="icon-person"></span>
+						</span>
+						<div class="feature-text">
+							<h3 class="heading">Top rated agents</h3>
+							<p class="text-black-50">Lorem ipsum dolor sit amet consectetur adipisicing elit. Nostrum iste.</p>
+						</div>
+					</div>
+
+					<div class="d-flex feature-h">
+						<span class="wrap-icon me-3">
+							<span class="icon-security"></span>
+						</span>
+						<div class="feature-text">
+							<h3 class="heading">Easy and safe</h3>
+							<p class="text-black-50">Lorem ipsum dolor sit amet consectetur adipisicing elit. Nostrum iste.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row section-counter mt-5">
+				<div class="col-6 col-sm-6 col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+					<div class="counter-wrap mb-5 mb-lg-0">
+						<span class="number"><span class="countup text-primary">2917</span></span>
+						<span class="caption text-black-50"># of Buy Properties</span>
+					</div>
+				</div>
+				<div class="col-6 col-sm-6 col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="400">
+					<div class="counter-wrap mb-5 mb-lg-0">
+						<span class="number"><span class="countup text-primary">3918</span></span>
+						<span class="caption text-black-50"># of Sell Properties</span>
+					</div>
+				</div>
+				<div class="col-6 col-sm-6 col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="500">
+					<div class="counter-wrap mb-5 mb-lg-0">
+						<span class="number"><span class="countup text-primary">38928</span></span>
+						<span class="caption text-black-50"># of All Properties</span>
+					</div>
+				</div>
+				<div class="col-6 col-sm-6 col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay="600">
+					<div class="counter-wrap mb-5 mb-lg-0">
+						<span class="number"><span class="countup text-primary">1291</span></span>
+						<span class="caption text-black-50"># of Agents</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+{% endblock features %}
+
+{% block team %}
+    <div class="section sec-testimonials bg-light">
+		<div class="container">
+			<div class="row mb-5 align-items-center">
+				<div class="col-md-6">
+					<h2 class="font-weight-bold heading text-primary mb-4 mb-md-0">The Team</h2>
+				</div>
+				<div class="col-md-6 text-md-end">
+					<div id="testimonial-nav">
+						<span class="prev" data-controls="prev">Prev</span>
+
+						<span class="next" data-controls="next">Next</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="col-lg-4">
+
+				</div>
+			</div>
+			<div class="testimonial-slider-wrap">
+				<div class="testimonial-slider">
+					<div class="item">
+						<div class="testimonial">
+							<img src="static/images/person_1.jpg" alt="Image" class="img-fluid rounded-circle w-25 mb-4">
+							<h3 class="h5 text-primary">Erik Nyquist</h3>
+							<p class="text-black-50">Machine Learning Engineer, CEO</p>
+
+							<p>Text About CEO</p>
+
+							<ul class="social list-unstyled list-inline dark-hover">
+								<li class="list-inline-item"><a href="#"><span class="icon-twitter"></span></a></li>
+								<li class="list-inline-item"><a href="#"><span class="icon-facebook"></span></a></li>
+								<li class="list-inline-item"><a href="#"><span class="icon-linkedin"></span></a></li>
+								<li class="list-inline-item"><a href="#"><span class="icon-instagram"></span></a></li>
+							</ul>
+
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+{% endblock team %}
